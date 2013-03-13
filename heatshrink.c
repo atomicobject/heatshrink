@@ -33,12 +33,12 @@ static void usage() {
     exit(1);
 }
 
-typedef enum { IO_READ, IO_WRITE, } IO_MODE;
-typedef enum { OP_ENC, OP_DEC, } OPERATION;
+typedef enum { IO_READ, IO_WRITE, } IO_mode;
+typedef enum { OP_ENC, OP_DEC, } Operation;
 
 typedef struct {
     int fd;                     /* file descriptor */
-    IO_MODE mode;
+    IO_mode mode;
     size_t fill;                /* fill index */
     size_t read;                /* read index */
     size_t size;
@@ -52,7 +52,7 @@ typedef struct {
     size_t decoder_input_buffer_size;
     size_t buffer_size;
     uint8_t verbose;
-    OPERATION cmd;
+    Operation cmd;
     char *in_fname;
     char *out_fname;
     io_handle *in;
@@ -67,7 +67,7 @@ static void die(char *msg) {
 static void report(config *cfg);
 
 /* Open an IO handle. Returns NULL on error. */
-static io_handle *handle_open(char *fname, IO_MODE m, size_t buf_sz) {
+static io_handle *handle_open(char *fname, IO_mode m, size_t buf_sz) {
     io_handle *io = NULL;
     io = malloc(sizeof(*io) + buf_sz);
     if (io == NULL) return NULL;
@@ -199,9 +199,9 @@ static int encoder_sink_read(config *cfg, heatshrink_encoder *hse,
     memset(out_buf, 0, out_sz);
     uint16_t sink_sz = 0;
     uint16_t poll_sz = 0;
-    HEATSHRINK_ENCODER_SINK_RES sres;
-    HEATSHRINK_ENCODER_POLL_RES pres;
-    HEATSHRINK_ENCODER_FINISH_RES fres;
+    HSE_sink_res sres;
+    HSE_poll_res pres;
+    HSE_finish_res fres;
     io_handle *out = cfg->out;
 
     uint16_t sunk = 0;
@@ -267,9 +267,9 @@ static int decoder_sink_read(config *cfg, heatshrink_decoder *hsd,
     uint8_t out_buf[out_sz];
     memset(out_buf, 0, out_sz);
 
-    HEATSHRINK_DECODER_SINK_RES sres;
-    HEATSHRINK_DECODER_POLL_RES pres;
-    HEATSHRINK_DECODER_FINISH_RES fres;
+    HSD_sink_res sres;
+    HSD_poll_res pres;
+    HSD_finish_res fres;
 
     uint16_t sunk = 0;
     do {
@@ -307,7 +307,7 @@ static int decode(config *cfg) {
 
     io_handle *in = cfg->in;
 
-    HEATSHRINK_DECODER_FINISH_RES fres;
+    HSD_finish_res fres;
 
     /* Process input until end of stream */
     while (1) {

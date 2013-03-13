@@ -9,20 +9,20 @@ typedef enum {
     HSDR_SINK_OK,               /* data sunk, ready to poll */
     HSDR_SINK_FULL,             /* out of space in internal buffer */
     HSDR_SINK_ERROR_NULL=-1,    /* NULL argument */
-} HEATSHRINK_DECODER_SINK_RES;
+} HSD_sink_res;
 
 typedef enum {
     HSDR_POLL_EMPTY,            /* input exhausted */
     HSDR_POLL_MORE,             /* more data remaining, call again w/ fresh output buffer */
     HSDR_POLL_ERROR_NULL=-1,    /* NULL arguments */
     HSDR_POLL_ERROR_UNKNOWN=-2,
-} HEATSHRINK_DECODER_POLL_RES;
+} HSD_poll_res;
 
 typedef enum {
     HSDR_FINISH_DONE,           /* output is done */
     HSDR_FINISH_MORE,           /* more output remains */
     HSDR_FINISH_ERROR_NULL=-1,  /* NULL arguments */
-} HEATSHRINK_DECODER_FINISH_RES;
+} HSD_finish_res;
 
 #if HEATSHRINK_DYNAMIC_ALLOC
 #define HEATSHRINK_DECODER_INPUT_BUFFER_SIZE(BUF) \
@@ -84,17 +84,17 @@ void heatshrink_decoder_reset(heatshrink_decoder *hsd);
 
 /* Sink at most SIZE bytes from IN_BUF into the decoder. *INPUT_SIZE is set to
  * indicate how many bytes were actually sunk (in case a buffer was filled). */
-HEATSHRINK_DECODER_SINK_RES heatshrink_decoder_sink(heatshrink_decoder *hsd,
+HSD_sink_res heatshrink_decoder_sink(heatshrink_decoder *hsd,
     uint8_t *in_buf, size_t size, uint16_t *input_size);
 
 /* Poll for output from the decoder, copying at most OUT_BUF_SIZE bytes into
  * OUT_BUF (setting *OUTPUT_SIZE to the actual amount copied). */
-HEATSHRINK_DECODER_POLL_RES heatshrink_decoder_poll(heatshrink_decoder *hsd,
+HSD_poll_res heatshrink_decoder_poll(heatshrink_decoder *hsd,
     uint8_t *out_buf, size_t out_buf_size, uint16_t *output_size);
 
 /* Notify the dencoder that the input stream is finished.
  * If the return value is HSDR_FINISH_MORE, there is still more output, so
  * call heatshrink_decoder_poll and repeat. */
-HEATSHRINK_DECODER_FINISH_RES heatshrink_decoder_finish(heatshrink_decoder *hsd);
+HSD_finish_res heatshrink_decoder_finish(heatshrink_decoder *hsd);
 
 #endif

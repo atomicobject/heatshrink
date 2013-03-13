@@ -92,7 +92,7 @@ TEST encoder_poll_should_indicate_when_no_input_is_provided() {
     uint8_t output[512];
     uint16_t output_size = 0;
 
-    HEATSHRINK_ENCODER_POLL_RES res = heatshrink_encoder_poll(hse,
+    HSE_poll_res res = heatshrink_encoder_poll(hse,
         output, 512, &output_size);
     ASSERT_EQ(HSER_POLL_EMPTY, res);
     heatshrink_encoder_free(hse);
@@ -114,12 +114,12 @@ TEST encoder_should_emit_data_without_repetitions_as_literal_sequence() {
     
     /* Should get no output yet, since encoder doesn't know input is complete. */
     copied = 0;
-    HEATSHRINK_ENCODER_POLL_RES pres = heatshrink_encoder_poll(hse, output, 1024, &copied);
+    HSE_poll_res pres = heatshrink_encoder_poll(hse, output, 1024, &copied);
     ASSERT_EQ(HSER_POLL_EMPTY, pres);
     ASSERT_EQ(0, copied);
 
     /* Mark input stream as done, to force small input to be processed. */
-    HEATSHRINK_ENCODER_FINISH_RES fres = heatshrink_encoder_finish(hse);
+    HSE_finish_res fres = heatshrink_encoder_finish(hse);
     ASSERT_EQ(HSER_FINISH_MORE, fres);
 
     pres = heatshrink_encoder_poll(hse, output, 1024, &copied);
@@ -150,12 +150,12 @@ TEST encoder_should_emit_series_of_same_byte_as_literal_then_backref() {
     
     /* Should get no output yet, since encoder doesn't know input is complete. */
     copied = 0;
-    HEATSHRINK_ENCODER_POLL_RES pres = heatshrink_encoder_poll(hse, output, 1024, &copied);
+    HSE_poll_res pres = heatshrink_encoder_poll(hse, output, 1024, &copied);
     ASSERT_EQ(HSER_POLL_EMPTY, pres);
     ASSERT_EQ(0, copied);
 
     /* Mark input stream as done, to force small input to be processed. */
-    HEATSHRINK_ENCODER_FINISH_RES fres = heatshrink_encoder_finish(hse);
+    HSE_finish_res fres = heatshrink_encoder_finish(hse);
     ASSERT_EQ(HSER_FINISH_MORE, fres);
 
     pres = heatshrink_encoder_poll(hse, output, 1024, &copied);
@@ -178,12 +178,12 @@ TEST encoder_poll_should_detect_repeated_substring() {
 
     uint16_t copied = 0;
     memset(output, 0, 1024);
-    HEATSHRINK_ENCODER_SINK_RES sres = heatshrink_encoder_sink(hse,
+    HSE_sink_res sres = heatshrink_encoder_sink(hse,
         input, sizeof(input), &copied);
     ASSERT_EQ(HSER_SINK_OK, sres);
     ASSERT_EQ(sizeof(input), copied);
 
-    HEATSHRINK_ENCODER_FINISH_RES fres = heatshrink_encoder_finish(hse);
+    HSE_finish_res fres = heatshrink_encoder_finish(hse);
     ASSERT_EQ(HSER_FINISH_MORE, fres);
 
     ASSERT_EQ(HSER_POLL_EMPTY, heatshrink_encoder_poll(hse, output, 1024, &copied));
@@ -204,12 +204,12 @@ TEST encoder_poll_should_detect_repeated_substring_and_preserve_trailing_literal
     uint8_t expected[] = {0xb0, 0xd8, 0xac, 0x76, 0x40, 0x1b, 0xb2, 0x80 };
     uint16_t copied = 0;
     memset(output, 0, 1024);
-    HEATSHRINK_ENCODER_SINK_RES sres = heatshrink_encoder_sink(hse,
+    HSE_sink_res sres = heatshrink_encoder_sink(hse,
         input, sizeof(input), &copied);
     ASSERT_EQ(HSER_SINK_OK, sres);
     ASSERT_EQ(sizeof(input), copied);
 
-    HEATSHRINK_ENCODER_FINISH_RES fres = heatshrink_encoder_finish(hse);
+    HSE_finish_res fres = heatshrink_encoder_finish(hse);
     ASSERT_EQ(HSER_FINISH_MORE, fres);
 
     ASSERT_EQ(HSER_POLL_EMPTY, heatshrink_encoder_poll(hse, output, 1024, &copied));
@@ -284,7 +284,7 @@ TEST decoder_sink_should_reject_excessively_large_input() {
         HEATSHRINK_MIN_WINDOW_BITS, 4);
     uint16_t count = 0;
     // Sink as much as will fit
-    HEATSHRINK_DECODER_SINK_RES res = heatshrink_decoder_sink(hsd, input, 6, &count);
+    HSD_sink_res res = heatshrink_decoder_sink(hsd, input, 6, &count);
     ASSERT_EQ(HSDR_SINK_OK, res);
     ASSERT_EQ(1, count);
 
@@ -301,7 +301,7 @@ TEST decoder_sink_should_sink_data_when_preconditions_hold() {
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256,
         HEATSHRINK_MIN_WINDOW_BITS, 4);
     uint16_t count = 0;
-    HEATSHRINK_DECODER_SINK_RES res = heatshrink_decoder_sink(hsd, input, 6, &count);
+    HSD_sink_res res = heatshrink_decoder_sink(hsd, input, 6, &count);
     ASSERT_EQ(HSDR_SINK_OK, res);
     ASSERT_EQ(hsd->input_size, 6);
     ASSERT_EQ(hsd->input_index, 0);
@@ -314,7 +314,7 @@ TEST decoder_poll_should_return_empty_if_empty() {
     uint16_t out_sz = 0;
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256,
         HEATSHRINK_MIN_WINDOW_BITS, 4);
-    HEATSHRINK_DECODER_POLL_RES res = heatshrink_decoder_poll(hsd, output, 256, &out_sz);
+    HSD_poll_res res = heatshrink_decoder_poll(hsd, output, 256, &out_sz);
     ASSERT_EQ(HSDR_POLL_EMPTY, res);
     heatshrink_decoder_free(hsd);
     PASS();
@@ -323,7 +323,7 @@ TEST decoder_poll_should_return_empty_if_empty() {
 TEST decoder_poll_should_reject_null_hsd() {
     uint8_t output[256];
     uint16_t out_sz = 0;
-    HEATSHRINK_DECODER_POLL_RES res = heatshrink_decoder_poll(NULL, output, 256, &out_sz);
+    HSD_poll_res res = heatshrink_decoder_poll(NULL, output, 256, &out_sz);
     ASSERT_EQ(HSDR_POLL_ERROR_NULL, res);
     PASS();
 }
@@ -332,7 +332,7 @@ TEST decoder_poll_should_reject_null_output_buffer() {
     uint16_t out_sz = 0;
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256,
         HEATSHRINK_MIN_WINDOW_BITS, 4);
-    HEATSHRINK_DECODER_POLL_RES res = heatshrink_decoder_poll(hsd, NULL, 256, &out_sz);
+    HSD_poll_res res = heatshrink_decoder_poll(hsd, NULL, 256, &out_sz);
     ASSERT_EQ(HSDR_POLL_ERROR_NULL, res);
     heatshrink_decoder_free(hsd);
     PASS();
@@ -342,7 +342,7 @@ TEST decoder_poll_should_reject_null_output_size_pointer() {
     uint8_t output[256];
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256,
         HEATSHRINK_MIN_WINDOW_BITS, 4);
-    HEATSHRINK_DECODER_POLL_RES res = heatshrink_decoder_poll(hsd, output, 256, NULL);
+    HSD_poll_res res = heatshrink_decoder_poll(hsd, output, 256, NULL);
     ASSERT_EQ(HSDR_POLL_ERROR_NULL, res);
     heatshrink_decoder_free(hsd);
     PASS();
@@ -354,11 +354,11 @@ TEST decoder_poll_should_expand_short_literal() {
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 3);
     uint16_t count = 0;
 
-    HEATSHRINK_DECODER_SINK_RES sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
+    HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
     ASSERT_EQ(HSDR_SINK_OK, sres);
 
     uint16_t out_sz = 0;
-    HEATSHRINK_DECODER_POLL_RES pres = heatshrink_decoder_poll(hsd, output, 4, &out_sz);
+    HSD_poll_res pres = heatshrink_decoder_poll(hsd, output, 4, &out_sz);
     ASSERT_EQ(HSDR_POLL_EMPTY, pres);
     ASSERT_EQ(3, out_sz);
     ASSERT_EQ('f', output[0]);
@@ -376,7 +376,7 @@ TEST decoder_poll_should_expand_short_literal_and_backref() {
     memset(output, 0, sizeof(*output));
     uint16_t count = 0;
     
-    HEATSHRINK_DECODER_SINK_RES sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
+    HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
     ASSERT_EQ(HSDR_SINK_OK, sres);
 
     uint16_t out_sz = 0;
@@ -403,7 +403,7 @@ TEST decoder_poll_should_expand_short_self_overlapping_backref() {
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 8, 7);
     uint16_t count = 0;
     
-    HEATSHRINK_DECODER_SINK_RES sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
+    HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
     ASSERT_EQ(HSDR_SINK_OK, sres);
 
     uint16_t out_sz = 0;
@@ -423,11 +423,11 @@ TEST decoder_poll_should_suspend_if_out_of_space_in_output_buffer_during_literal
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 7);
     uint16_t count = 0;
     
-    HEATSHRINK_DECODER_SINK_RES sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
+    HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
     ASSERT_EQ(HSDR_SINK_OK, sres);
 
     uint16_t out_sz = 0;
-    HEATSHRINK_DECODER_POLL_RES pres = heatshrink_decoder_poll(hsd, output, 1, &out_sz);
+    HSD_poll_res pres = heatshrink_decoder_poll(hsd, output, 1, &out_sz);
     ASSERT_EQ(HSDR_POLL_MORE, pres);
     ASSERT_EQ(1, out_sz);
     ASSERT_EQ('f', output[0]);
@@ -443,11 +443,11 @@ TEST decoder_poll_should_suspend_if_out_of_space_in_output_buffer_during_backref
     memset(output, 0, sizeof(*output));
     uint16_t count = 0;
     
-    HEATSHRINK_DECODER_SINK_RES sres = heatshrink_decoder_sink(hsd, input, 6, &count);
+    HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, 6, &count);
     ASSERT_EQ(HSDR_SINK_OK, sres);
 
     uint16_t out_sz = 0;
-    HEATSHRINK_DECODER_POLL_RES pres = heatshrink_decoder_poll(hsd, output, 4, &out_sz);
+    HSD_poll_res pres = heatshrink_decoder_poll(hsd, output, 4, &out_sz);
     ASSERT_EQ(HSDR_POLL_MORE, pres);
     ASSERT_EQ(4, out_sz);
     ASSERT_EQ('f', output[0]);
@@ -466,7 +466,7 @@ TEST decoder_poll_should_expand_short_literal_and_backref_when_fed_input_byte_by
     memset(output, 0, sizeof(*output));
     uint16_t count = 0;
     
-    HEATSHRINK_DECODER_SINK_RES sres;
+    HSD_sink_res sres;
     for (int i=0; i<6; i++) {
         sres = heatshrink_decoder_sink(hsd, &input[i], 1, &count);
         ASSERT_EQ(HSDR_SINK_OK, sres);
@@ -474,7 +474,7 @@ TEST decoder_poll_should_expand_short_literal_and_backref_when_fed_input_byte_by
     heatshrink_decoder_finish(hsd);
 
     uint16_t out_sz = 0;
-    HEATSHRINK_DECODER_POLL_RES pres = heatshrink_decoder_poll(hsd, output, 7, &out_sz);
+    HSD_poll_res pres = heatshrink_decoder_poll(hsd, output, 7, &out_sz);
     ASSERT_EQ(6, out_sz);
     ASSERT_EQ(HSDR_POLL_EMPTY, pres);
     ASSERT_EQ('f', output[0]);
@@ -491,7 +491,7 @@ TEST decoder_poll_should_expand_short_literal_and_backref_when_fed_input_byte_by
 TEST decoder_finish_should_reject_null_input() {
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 7);
 
-    HEATSHRINK_DECODER_FINISH_RES exp = HSDR_FINISH_ERROR_NULL;
+    HSD_finish_res exp = HSDR_FINISH_ERROR_NULL;
     ASSERT_EQ(exp, heatshrink_decoder_finish(NULL));
 
     heatshrink_decoder_free(hsd);
@@ -506,11 +506,11 @@ TEST decoder_finish_should_note_when_done() {
     memset(output, 0, sizeof(*output));
     uint16_t count = 0;
     
-    HEATSHRINK_DECODER_SINK_RES sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
+    HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
     ASSERT_EQ(HSDR_SINK_OK, sres);
 
     uint16_t out_sz = 0;
-    HEATSHRINK_DECODER_POLL_RES pres = heatshrink_decoder_poll(hsd, output, sizeof(output), &out_sz);
+    HSD_poll_res pres = heatshrink_decoder_poll(hsd, output, sizeof(output), &out_sz);
     ASSERT_EQ(HSDR_POLL_EMPTY, pres);
     ASSERT_EQ(6, out_sz);
     ASSERT_EQ('f', output[0]);
@@ -520,7 +520,7 @@ TEST decoder_finish_should_note_when_done() {
     ASSERT_EQ('o', output[4]);
     ASSERT_EQ('o', output[5]);
 
-    HEATSHRINK_DECODER_FINISH_RES fres = heatshrink_decoder_finish(hsd);
+    HSD_finish_res fres = heatshrink_decoder_finish(hsd);
     ASSERT_EQ(HSDR_FINISH_DONE, fres);
 
     heatshrink_decoder_free(hsd);
@@ -533,12 +533,12 @@ TEST gen() {
     uint8_t output[1024];
     uint16_t copied = 0;
     memset(output, 0, 1024);
-    HEATSHRINK_ENCODER_SINK_RES sres = heatshrink_encoder_sink(hse,
+    HSE_sink_res sres = heatshrink_encoder_sink(hse,
         input, sizeof(input), &copied);
     ASSERT_EQ(HSER_SINK_OK, sres);
     ASSERT_EQ(sizeof(input), copied);
 
-    HEATSHRINK_ENCODER_FINISH_RES fres = heatshrink_encoder_finish(hse);
+    HSE_finish_res fres = heatshrink_encoder_finish(hse);
     ASSERT_EQ(HSER_FINISH_MORE, fres);
 
     ASSERT_EQ(HSER_POLL_EMPTY, heatshrink_encoder_poll(hse, output, 1024, &copied));
@@ -618,7 +618,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cf
             ASSERT_EQ(HSER_FINISH_MORE, heatshrink_encoder_finish(hse));
         }
 
-        HEATSHRINK_ENCODER_POLL_RES pres;
+        HSE_poll_res pres;
         do {                    /* "turn the crank" */
             pres = heatshrink_encoder_poll(hse, &comp[polled], comp_sz - polled, &count);
             ASSERT(pres >= 0);
@@ -648,7 +648,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cf
             ASSERT_EQ(HSDR_FINISH_MORE, heatshrink_decoder_finish(hsd));
         }
 
-        HEATSHRINK_DECODER_POLL_RES pres;
+        HSD_poll_res pres;
         do {
             pres = heatshrink_decoder_poll(hsd, &decomp[polled],
                 decomp_sz - polled, &count);
@@ -659,7 +659,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cf
         } while (pres == HSDR_POLL_MORE);
         ASSERT_EQ(HSDR_POLL_EMPTY, pres);
         if (sunk == compressed_size) {
-            HEATSHRINK_DECODER_FINISH_RES fres = heatshrink_decoder_finish(hsd);
+            HSD_finish_res fres = heatshrink_decoder_finish(hsd);
             ASSERT_EQ(HSDR_FINISH_DONE, fres);
         }
 
@@ -745,7 +745,7 @@ TEST data_without_duplication_should_match_with_absurdly_tiny_buffers() {
 
     if (log) dump_buf("comp", comp, packed_count);
     for (int i=0; i<packed_count; i++) {
-        HEATSHRINK_DECODER_SINK_RES sres = heatshrink_decoder_sink(hsd, &comp[i], 1, &count);
+        HSD_sink_res sres = heatshrink_decoder_sink(hsd, &comp[i], 1, &count);
         //printf("sres is %d\n", sres);
         ASSERT(sres >= 0);
     }
@@ -787,7 +787,7 @@ TEST data_with_simple_repetition_should_match_with_absurdly_tiny_buffers() {
 
     if (log) dump_buf("comp", comp, packed_count);
     for (int i=0; i<packed_count; i++) {
-        HEATSHRINK_DECODER_SINK_RES sres = heatshrink_decoder_sink(hsd, &comp[i], 1, &count);
+        HSD_sink_res sres = heatshrink_decoder_sink(hsd, &comp[i], 1, &count);
         //printf("sres is %d\n", sres);
         ASSERT(sres >= 0);
     }

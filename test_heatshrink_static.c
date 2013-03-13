@@ -59,7 +59,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
             ASSERT_EQ(HSER_FINISH_MORE, heatshrink_encoder_finish(&hse));
         }
 
-        HEATSHRINK_ENCODER_POLL_RES pres;
+        HSE_poll_res pres;
         do {                    /* "turn the crank" */
             pres = heatshrink_encoder_poll(&hse, &comp[polled], comp_sz - polled, &count);
             ASSERT(pres >= 0);
@@ -89,7 +89,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
             ASSERT_EQ(HSDR_FINISH_MORE, heatshrink_decoder_finish(&hsd));
         }
 
-        HEATSHRINK_DECODER_POLL_RES pres;
+        HSD_poll_res pres;
         do {
             pres = heatshrink_decoder_poll(&hsd, &decomp[polled],
                 decomp_sz - polled, &count);
@@ -99,7 +99,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
         } while (pres == HSDR_POLL_MORE);
         ASSERT_EQ(HSDR_POLL_EMPTY, pres);
         if (sunk == compressed_size) {
-            HEATSHRINK_DECODER_FINISH_RES fres = heatshrink_decoder_finish(&hsd);
+            HSD_finish_res fres = heatshrink_decoder_finish(&hsd);
             ASSERT_EQ(HSDR_FINISH_DONE, fres);
         }
 

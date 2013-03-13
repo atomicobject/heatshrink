@@ -9,20 +9,20 @@ typedef enum {
     HSER_SINK_OK,               /* data sunk into input buffer */
     HSER_SINK_ERROR_NULL=-1,    /* NULL argument */
     HSER_SINK_ERROR_MISUSE=-2,  /* API misuse */
-} HEATSHRINK_ENCODER_SINK_RES;
+} HSE_sink_res;
 
 typedef enum {
     HSER_POLL_EMPTY,            /* input exhausted */
     HSER_POLL_MORE,             /* poll again for more output  */
     HSER_POLL_ERROR_NULL=-1,    /* NULL argument */
     HSER_POLL_ERROR_MISUSE=-2,  /* API misuse */
-} HEATSHRINK_ENCODER_POLL_RES;
+} HSE_poll_res;
 
 typedef enum {
     HSER_FINISH_DONE,           /* encoding is complete */
     HSER_FINISH_MORE,           /* more output remaining; use poll */
     HSER_FINISH_ERROR_NULL=-1,  /* NULL argument */
-} HEATSHRINK_ENCODER_FINISH_RES;
+} HSE_finish_res;
 
 #if HEATSHRINK_DYNAMIC_ALLOC
 #define HEATSHRINK_ENCODER_WINDOW_BITS(HSE) \
@@ -92,17 +92,17 @@ void heatshrink_encoder_reset(heatshrink_encoder *hse);
 /* Sink up to SIZE bytes from IN_BUF into the encoder.
  * INPUT_SIZE is set to the number of bytes actually sunk (in case a
  * buffer was filled.). */
-HEATSHRINK_ENCODER_SINK_RES heatshrink_encoder_sink(heatshrink_encoder *hse,
+HSE_sink_res heatshrink_encoder_sink(heatshrink_encoder *hse,
     uint8_t *in_buf, size_t size, uint16_t *input_size);
 
 /* Poll for output from the encoder, copying at most OUT_BUF_SIZE bytes into
  * OUT_BUF (setting *OUTPUT_SIZE to the actual amount copied). */
-HEATSHRINK_ENCODER_POLL_RES heatshrink_encoder_poll(heatshrink_encoder *hse,
+HSE_poll_res heatshrink_encoder_poll(heatshrink_encoder *hse,
     uint8_t *out_buf, size_t out_buf_size, uint16_t *output_size);
 
 /* Notify the encoder that the input stream is finished.
  * If the return value is HSER_FINISH_MORE, there is still more output, so
  * call heatshrink_encoder_poll and repeat. */
-HEATSHRINK_ENCODER_FINISH_RES heatshrink_encoder_finish(heatshrink_encoder *hse);
+HSE_finish_res heatshrink_encoder_finish(heatshrink_encoder *hse);
 
 #endif

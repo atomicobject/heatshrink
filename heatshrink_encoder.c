@@ -14,7 +14,7 @@ typedef enum {
     HSES_SAVE_BACKLOG,          /* copying buffer to backlog */
     HSES_FLUSH_BITS,            /* flush bit buffer */
     HSES_DONE,                  /* done */
-} HEATSHRINK_ENCODER_STATE;
+} HSE_state;
 
 #include <assert.h>
 
@@ -41,13 +41,14 @@ static const char *state_names[] = {
 #define ASSERT(X) /* no-op */
 #endif
 
-typedef enum {
+// Encoder flags
+enum {
     FLAG_IS_FINISHING = 0x01,
     FLAG_HAS_LITERAL = 0x02,
     FLAG_ON_FINAL_LITERAL = 0x04,
     FLAG_BACKLOG_IS_PARTIAL = 0x08,
     FLAG_BACKLOG_IS_FILLED = 0x10,
-} ENCODER_FLAGS;
+};
 
 typedef struct {
     uint8_t *buf;               /* output buffer */
@@ -137,7 +138,7 @@ void heatshrink_encoder_reset(heatshrink_encoder *hse) {
     #endif
 }
 
-HEATSHRINK_ENCODER_SINK_RES heatshrink_encoder_sink(heatshrink_encoder *hse,
+HSE_sink_res heatshrink_encoder_sink(heatshrink_encoder *hse,
         uint8_t *in_buf, size_t size, uint16_t *input_size) {
     if ((hse == NULL) || (in_buf == NULL) || (input_size == NULL))
         return HSER_SINK_ERROR_NULL;
@@ -176,20 +177,20 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     uint16_t end, uint16_t maxlen, uint16_t *match_length);
 static void do_indexing(heatshrink_encoder *hse);
 
-static HEATSHRINK_ENCODER_STATE st_step_search(heatshrink_encoder *hse);
-static HEATSHRINK_ENCODER_STATE st_yield_tag_bit(heatshrink_encoder *hse,
+static HSE_state st_step_search(heatshrink_encoder *hse);
+static HSE_state st_yield_tag_bit(heatshrink_encoder *hse,
     output_info *oi);
-static HEATSHRINK_ENCODER_STATE st_yield_literal(heatshrink_encoder *hse,
+static HSE_state st_yield_literal(heatshrink_encoder *hse,
     output_info *oi);
-static HEATSHRINK_ENCODER_STATE st_yield_br_index(heatshrink_encoder *hse,
+static HSE_state st_yield_br_index(heatshrink_encoder *hse,
     output_info *oi);
-static HEATSHRINK_ENCODER_STATE st_yield_br_length(heatshrink_encoder *hse,
+static HSE_state st_yield_br_length(heatshrink_encoder *hse,
     output_info *oi);
-static HEATSHRINK_ENCODER_STATE st_save_backlog(heatshrink_encoder *hse);
-static HEATSHRINK_ENCODER_STATE st_flush_bit_buffer(heatshrink_encoder *hse,
+static HSE_state st_save_backlog(heatshrink_encoder *hse);
+static HSE_state st_flush_bit_buffer(heatshrink_encoder *hse,
     output_info *oi);
 
-HEATSHRINK_ENCODER_POLL_RES heatshrink_encoder_poll(heatshrink_encoder *hse,
+HSE_poll_res heatshrink_encoder_poll(heatshrink_encoder *hse,
         uint8_t *out_buf, size_t out_buf_size, uint16_t *output_size) {
     if ((hse == NULL) || (out_buf == NULL) || (output_size == NULL))
         return HSER_POLL_ERROR_NULL;
@@ -250,7 +251,7 @@ HEATSHRINK_ENCODER_POLL_RES heatshrink_encoder_poll(heatshrink_encoder *hse,
     }
 }
 
-HEATSHRINK_ENCODER_FINISH_RES heatshrink_encoder_finish(heatshrink_encoder *hse) {
+HSE_finish_res heatshrink_encoder_finish(heatshrink_encoder *hse) {
     if (hse == NULL) return HSER_FINISH_ERROR_NULL;
     LOG("-- setting is_finishing flag\n");
     hse->flags |= FLAG_IS_FINISHING;
@@ -258,7 +259,7 @@ HEATSHRINK_ENCODER_FINISH_RES heatshrink_encoder_finish(heatshrink_encoder *hse)
     return hse->state == HSES_DONE ? HSER_FINISH_DONE : HSER_FINISH_MORE;
 }
 
-static HEATSHRINK_ENCODER_STATE st_step_search(heatshrink_encoder *hse) {
+static HSE_state st_step_search(heatshrink_encoder *hse) {
     uint16_t window_length = get_input_buffer_size(hse);
     uint16_t lookahead_sz = get_lookahead_size(hse);
     uint16_t msi = hse->match_scan_index;
@@ -319,7 +320,7 @@ static HEATSHRINK_ENCODER_STATE st_step_search(heatshrink_encoder *hse) {
     }
 }
 
-static HEATSHRINK_ENCODER_STATE st_yield_tag_bit(heatshrink_encoder *hse,
+static HSE_state st_yield_tag_bit(heatshrink_encoder *hse,
         output_info *oi) {
     if (can_take_byte(oi)) {
         if (hse->match_length == 0) {
@@ -336,7 +337,7 @@ static HEATSHRINK_ENCODER_STATE st_yield_tag_bit(heatshrink_encoder *hse,
     }
 }
 
-static HEATSHRINK_ENCODER_STATE st_yield_literal(heatshrink_encoder *hse,
+static HSE_state st_yield_literal(heatshrink_encoder *hse,
         output_info *oi) {
     if (can_take_byte(oi)) {
         push_literal_byte(hse, oi);
@@ -348,7 +349,7 @@ static HEATSHRINK_ENCODER_STATE st_yield_literal(heatshrink_encoder *hse,
     }
 }
 
-static HEATSHRINK_ENCODER_STATE st_yield_br_index(heatshrink_encoder *hse,
+static HSE_state st_yield_br_index(heatshrink_encoder *hse,
         output_info *oi) {
     if (can_take_byte(oi)) {
         LOG("-- yielding backref index %u\n", hse->match_pos);
@@ -364,7 +365,7 @@ static HEATSHRINK_ENCODER_STATE st_yield_br_index(heatshrink_encoder *hse,
     }
 }
 
-static HEATSHRINK_ENCODER_STATE st_yield_br_length(heatshrink_encoder *hse,
+static HSE_state st_yield_br_length(heatshrink_encoder *hse,
         output_info *oi) {
     if (can_take_byte(oi)) {
         LOG("-- yielding backref length %u\n", hse->match_length);
@@ -380,7 +381,7 @@ static HEATSHRINK_ENCODER_STATE st_yield_br_length(heatshrink_encoder *hse,
     }
 }
 
-static HEATSHRINK_ENCODER_STATE st_save_backlog(heatshrink_encoder *hse) {
+static HSE_state st_save_backlog(heatshrink_encoder *hse) {
     if (is_finishing(hse)) {
         /* copy remaining literal (if necessary) */
         if (has_literal(hse)) {
@@ -396,7 +397,7 @@ static HEATSHRINK_ENCODER_STATE st_save_backlog(heatshrink_encoder *hse) {
     }
 }
 
-static HEATSHRINK_ENCODER_STATE st_flush_bit_buffer(heatshrink_encoder *hse,
+static HSE_state st_flush_bit_buffer(heatshrink_encoder *hse,
         output_info *oi) {
     if (hse->bit_index == 0x80) {
         LOG("-- done!\n");
