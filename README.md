@@ -20,5 +20,5 @@ For more information, see the [blog post] for an overview, and the
 `heatshrink_encoder.h` / `heatshrink_decoder.h` header files for API
 documentation.
 
-[blog post]: https://spin.atomicobject.com/
+[blog post]: http://spin.atomicobject.com/2013/03/14/heatshrink-embedded-data-compression/
 [LZSS]: http://en.wikipedia.org/wiki/Lempel-Ziv-Storer-Szymanski
