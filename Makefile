@@ -6,9 +6,9 @@ WARN = -Wall -pedantic #-Werror
 CFLAGS += -std=c99 -g ${WARN} ${OPTIMIZE}
 
 all:
-	@echo For tests, make test_heatshrink_dynamic (default) or change the
-	@echo config.h to disable static memory and build test_heatshrink_static.
-	@echo For the standalone command-line tool, make heatshrink.
+	@echo "For tests, make test_heatshrink_dynamic (default) or change the"
+	@echo "config.h to disable static memory and build test_heatshrink_static."
+	@echo "For the standalone command-line tool, make heatshrink."
 
 ${PROJECT}: heatshrink.c
 
