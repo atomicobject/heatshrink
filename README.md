@@ -1,4 +1,5 @@
-heatshrink, a data compression/decompression library for embedded/real-time systems.
+heatshrink, a data compression/decompression library for
+embedded/real-time systems.
 
 There is a standalone command-line program, `heatshrink`, but the
 encoder and decoder can also be used as libraries, independent of each
