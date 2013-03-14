@@ -1,22 +1,19 @@
-#heatshrink
+# heatshrink
 
-A data compression/decompression library for
-embedded/real-time systems.
-
+A data compression/decompression library for embedded/real-time systems.
 
 ## Key Features:
 
 - **Low memory usage (as low as 50 bytes)**      
-    It is useful for some cases with less than 50 bytes and useful
-    for more general cases with <300 bytes
-- **Incremental bounded CPU use**  
-    You can chew on the data in as small of pieces as you would like.
-    This is a useful property in hard-realtime environments
-- **Configurable to use either static or dynamic memory allocation**      
-    The library is quite flexible in how it lets you allocate its
-    memory.
+    It is useful for some cases with less than 50 bytes, and useful
+    for many general cases with < 300 bytes.
+- **Incremental, bounded CPU use**  
+    You can chew on input data in arbitrarily tiny bites.
+    This is a useful property in hard-realtime environments.
+- **Can use either static or dynamic memory allocation**      
+    The library doesn't impose any constraints on memory management.
 - **BSD license**      
-    You can use it freely even for commercial purposes
+    You can use it freely, even for commercial purposes.
 
 ## Getting Started:
 
