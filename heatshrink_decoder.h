@@ -2,6 +2,7 @@
 #define HEATSHRINK_DECODER_H
 
 #include <stdint.h>
+#include <stddef.h>
 #include "heatshrink.h"
 #include "heatshrink_config.h"
 
