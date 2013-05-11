@@ -22,7 +22,7 @@ typedef enum {
 #include <stdio.h>
 #include <ctype.h>
 #include <assert.h>
-#define LOG(...) printf(__VA_ARGS__)
+#define LOG(...) fprintf(stderr, __VA_ARGS__)
 #define ASSERT(X) assert(X)
 static const char *state_names[] = {
     "not_full",
