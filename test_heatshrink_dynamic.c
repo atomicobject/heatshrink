@@ -894,22 +894,44 @@ SUITE(integration) {
     RUN_TEST(sixty_four_k);
 
 #if __STDC_VERSION__ >= 19901L
-    printf("\n\nFuzzing:\n");
-    for (uint32_t size=1; size < 128*1024L; size <<= 1) {
-        if (GREATEST_IS_VERBOSE()) printf(" -- size %u\n", size);
-        for (uint16_t ibs=32; ibs<=8192; ibs <<= 1) { /* input buffer size */
-            if (GREATEST_IS_VERBOSE()) printf(" -- input buffer %u\n", ibs);
-            for (uint32_t seed=1; seed<=10; seed++) {
-                if (GREATEST_IS_VERBOSE()) printf(" -- seed %u\n", seed);
-                cfg_info cfg;
-                cfg.log_lvl = 0;
-                cfg.window_sz2 = 8;
-                cfg.lookahead_sz2 = 3;
-                cfg.decoder_input_buffer_size = ibs;
-                RUN_TESTp(pseudorandom_data_should_match, size, seed, &cfg);
+    printf("\n\nFuzzing (single-byte sizes):\n");
+    for (uint8_t lsize=3; lsize < 8; lsize++) {
+        for (uint32_t size=1; size < 128*1024L; size <<= 1) {
+            if (GREATEST_IS_VERBOSE()) printf(" -- size %u\n", size);
+            for (uint16_t ibs=32; ibs<=8192; ibs <<= 1) { /* input buffer size */
+                if (GREATEST_IS_VERBOSE()) printf(" -- input buffer %u\n", ibs);
+                for (uint32_t seed=1; seed<=10; seed++) {
+                    if (GREATEST_IS_VERBOSE()) printf(" -- seed %u\n", seed);
+                    cfg_info cfg;
+                    cfg.log_lvl = 0;
+                    cfg.window_sz2 = 8;
+                    cfg.lookahead_sz2 = lsize;
+                    cfg.decoder_input_buffer_size = ibs;
+                    RUN_TESTp(pseudorandom_data_should_match, size, seed, &cfg);
+                }
             }
         }
     }
+
+    printf("\nFuzzing (multi-byte sizes):\n");
+    for (uint8_t lsize=6; lsize < 9; lsize++) {
+        for (uint32_t size=1; size < 128*1024L; size <<= 1) {
+            if (GREATEST_IS_VERBOSE()) printf(" -- size %u\n", size);
+            for (uint16_t ibs=32; ibs<=8192; ibs <<= 1) { /* input buffer size */
+                if (GREATEST_IS_VERBOSE()) printf(" -- input buffer %u\n", ibs);
+                for (uint32_t seed=1; seed<=10; seed++) {
+                    if (GREATEST_IS_VERBOSE()) printf(" -- seed %u\n", seed);
+                    cfg_info cfg;
+                    cfg.log_lvl = 0;
+                    cfg.window_sz2 = 11;
+                    cfg.lookahead_sz2 = lsize;
+                    cfg.decoder_input_buffer_size = ibs;
+                    RUN_TESTp(pseudorandom_data_should_match, size, seed, &cfg);
+                }
+            }
+        }
+    }
+
 #endif
 }
 
