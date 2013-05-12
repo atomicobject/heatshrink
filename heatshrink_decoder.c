@@ -102,7 +102,7 @@ HSD_sink_res heatshrink_decoder_sink(heatshrink_decoder *hsd,
     }
 
     size = rem < size ? rem : size;
-    LOG("-- sinking %d bytes\n", size);
+    LOG("-- sinking %zd bytes\n", size);
     /* copy into input buffer (at head of buffers) */
     memcpy(&hsd->buffers[hsd->input_size], in_buf, size);
     hsd->input_size += size;
@@ -229,7 +229,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
         uint8_t *buf = &hsd->buffers[HEATSHRINK_DECODER_INPUT_BUFFER_SIZE(hsd)];
         uint16_t mask = (1 << HEATSHRINK_DECODER_WINDOW_BITS(hsd)) - 1;
         uint16_t neg_offset = hsd->output_index;
-        LOG("-- emitting %u bytes from -%u bytes back\n", count, neg_offset);
+        LOG("-- emitting %zu bytes from -%u bytes back\n", count, neg_offset);
         ASSERT(neg_offset < mask + 1);
         ASSERT(count <= 1 << BACKREF_COUNT_BITS(hsd));
 
@@ -265,8 +265,8 @@ static uint32_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
     for (int i = 0; i < count; i++) {
         if (hsd->bit_index == 0x00) {
             if (hsd->input_size == 0) {
-                LOG("  -- out of bits, suspending w/ accumulator of %u\n",
-                    hsd->bit_accumulator);
+                LOG("  -- out of bits, suspending w/ accumulator of %u (0x%02x)\n",
+                    hsd->bit_accumulator, hsd->bit_accumulator);
                 return (uint32_t)-1;
             }
             hsd->current_byte = hsd->buffers[hsd->input_index++];
