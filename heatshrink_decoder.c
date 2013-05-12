@@ -50,6 +50,7 @@ heatshrink_decoder *heatshrink_decoder_alloc(uint16_t input_buffer_size,
         (window_sz2 > HEATSHRINK_MAX_WINDOW_BITS) ||
         (input_buffer_size == 0) ||
         (lookahead_sz2 < HEATSHRINK_MIN_LOOKAHEAD_BITS) ||
+        (lookahead_sz2 > HEATSHRINK_MAX_LOOKAHEAD_BITS) ||
         (lookahead_sz2 > window_sz2)) {
         return NULL;
     }

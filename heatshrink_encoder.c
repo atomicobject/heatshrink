@@ -82,6 +82,7 @@ heatshrink_encoder *heatshrink_encoder_alloc(uint8_t window_sz2,
     if ((window_sz2 < HEATSHRINK_MIN_WINDOW_BITS) ||
         (window_sz2 > HEATSHRINK_MAX_WINDOW_BITS) ||
         (lookahead_sz2 < HEATSHRINK_MIN_LOOKAHEAD_BITS) ||
+        (lookahead_sz2 > HEATSHRINK_MAX_LOOKAHEAD_BITS) ||
         (lookahead_sz2 > window_sz2)) {
         return NULL;
     }
@@ -566,6 +567,7 @@ static uint8_t push_outgoing_bits(heatshrink_encoder *hse, output_info *oi) {
  * Bytes are set from the lowest bits, up. */
 static void push_bits(heatshrink_encoder *hse, uint8_t count, uint8_t bits,
         output_info *oi) {
+    ASSERT(count <= 8);
     LOG("++ push_bits: %d bits, input of 0x%02x\n", count, bits);
     for (int i=count - 1; i>=0; i--) {
         uint8_t bit = bits & (1 << i);
