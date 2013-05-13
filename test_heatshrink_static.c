@@ -42,7 +42,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
     memset(comp, 0, comp_sz);
     memset(decomp, 0, decomp_sz);
 
-    uint16_t count = 0;
+    size_t count = 0;
 
     if (log_lvl > 1) {
         printf("\n^^ COMPRESSING\n");
@@ -54,7 +54,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
     while (sunk < input_size) {
         ASSERT(heatshrink_encoder_sink(&hse, &input[sunk], input_size - sunk, &count) >= 0);
         sunk += count;
-        if (log_lvl > 1) printf("^^ sunk %d\n", count);
+        if (log_lvl > 1) printf("^^ sunk %zd\n", count);
         if (sunk == input_size) {
             ASSERT_EQ(HSER_FINISH_MORE, heatshrink_encoder_finish(&hse));
         }
@@ -64,7 +64,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
             pres = heatshrink_encoder_poll(&hse, &comp[polled], comp_sz - polled, &count);
             ASSERT(pres >= 0);
             polled += count;
-            if (log_lvl > 1) printf("^^ polled %d\n", count);
+            if (log_lvl > 1) printf("^^ polled %zd\n", count);
         } while (pres == HSER_POLL_MORE);
         ASSERT_EQ(HSER_POLL_EMPTY, pres);
         if (polled >= comp_sz) FAILm("compression should never expand that much");
@@ -84,7 +84,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
     while (sunk < compressed_size) {
         ASSERT(heatshrink_decoder_sink(&hsd, &comp[sunk], compressed_size - sunk, &count) >= 0);
         sunk += count;
-        if (log_lvl > 1) printf("^^ sunk %d\n", count);
+        if (log_lvl > 1) printf("^^ sunk %zd\n", count);
         if (sunk == compressed_size) {
             ASSERT_EQ(HSDR_FINISH_MORE, heatshrink_decoder_finish(&hsd));
         }
@@ -95,7 +95,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
                 decomp_sz - polled, &count);
             ASSERT(pres >= 0);
             polled += count;
-            if (log_lvl > 1) printf("^^ polled %d\n", count);
+            if (log_lvl > 1) printf("^^ polled %zd\n", count);
         } while (pres == HSDR_POLL_MORE);
         ASSERT_EQ(HSDR_POLL_EMPTY, pres);
         if (sunk == compressed_size) {

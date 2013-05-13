@@ -86,12 +86,12 @@ void heatshrink_decoder_reset(heatshrink_decoder *hsd);
 /* Sink at most SIZE bytes from IN_BUF into the decoder. *INPUT_SIZE is set to
  * indicate how many bytes were actually sunk (in case a buffer was filled). */
 HSD_sink_res heatshrink_decoder_sink(heatshrink_decoder *hsd,
-    uint8_t *in_buf, size_t size, uint16_t *input_size);
+    uint8_t *in_buf, size_t size, size_t *input_size);
 
 /* Poll for output from the decoder, copying at most OUT_BUF_SIZE bytes into
  * OUT_BUF (setting *OUTPUT_SIZE to the actual amount copied). */
 HSD_poll_res heatshrink_decoder_poll(heatshrink_decoder *hsd,
-    uint8_t *out_buf, size_t out_buf_size, uint16_t *output_size);
+    uint8_t *out_buf, size_t out_buf_size, size_t *output_size);
 
 /* Notify the dencoder that the input stream is finished.
  * If the return value is HSDR_FINISH_MORE, there is still more output, so

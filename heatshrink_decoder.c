@@ -39,7 +39,7 @@ static const char *state_names[] = {
 typedef struct {
     uint8_t *buf;               /* output buffer */
     size_t buf_size;            /* buffer size */
-    uint16_t *output_size;      /* bytes pushed to buffer, so far */
+    size_t *output_size;        /* bytes pushed to buffer, so far */
 } output_info;
 
 /* Forward references. */
@@ -96,7 +96,7 @@ void heatshrink_decoder_reset(heatshrink_decoder *hsd) {
 
 /* Copy SIZE bytes into the decoder's input buffer, if it will fit. */
 HSD_sink_res heatshrink_decoder_sink(heatshrink_decoder *hsd,
-        uint8_t *in_buf, size_t size, uint16_t *input_size) {
+        uint8_t *in_buf, size_t size, size_t *input_size) {
     if ((hsd == NULL) || (in_buf == NULL) || (input_size == NULL)) return HSDR_SINK_ERROR_NULL;
 
     size_t rem = HEATSHRINK_DECODER_INPUT_BUFFER_SIZE(hsd) - hsd->input_size;
@@ -139,7 +139,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
 static HSD_state st_check_for_input(heatshrink_decoder *hsd);
 
 HSD_poll_res heatshrink_decoder_poll(heatshrink_decoder *hsd,
-        uint8_t *out_buf, size_t out_buf_size, uint16_t *output_size) {
+        uint8_t *out_buf, size_t out_buf_size, size_t *output_size) {
     if ((hsd == NULL) || (out_buf == NULL) || (output_size == NULL)) return HSDR_POLL_ERROR_NULL;
     *output_size = 0;
 

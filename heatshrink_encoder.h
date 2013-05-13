@@ -94,12 +94,12 @@ void heatshrink_encoder_reset(heatshrink_encoder *hse);
  * INPUT_SIZE is set to the number of bytes actually sunk (in case a
  * buffer was filled.). */
 HSE_sink_res heatshrink_encoder_sink(heatshrink_encoder *hse,
-    uint8_t *in_buf, size_t size, uint16_t *input_size);
+    uint8_t *in_buf, size_t size, size_t *input_size);
 
 /* Poll for output from the encoder, copying at most OUT_BUF_SIZE bytes into
  * OUT_BUF (setting *OUTPUT_SIZE to the actual amount copied). */
 HSE_poll_res heatshrink_encoder_poll(heatshrink_encoder *hse,
-    uint8_t *out_buf, size_t out_buf_size, uint16_t *output_size);
+    uint8_t *out_buf, size_t out_buf_size, size_t *output_size);
 
 /* Notify the encoder that the input stream is finished.
  * If the return value is HSER_FINISH_MORE, there is still more output, so

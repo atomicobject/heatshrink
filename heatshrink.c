@@ -197,14 +197,14 @@ static int encoder_sink_read(config *cfg, heatshrink_encoder *hse,
     size_t out_sz = 4096;
     uint8_t out_buf[out_sz];
     memset(out_buf, 0, out_sz);
-    uint16_t sink_sz = 0;
-    uint16_t poll_sz = 0;
+    size_t sink_sz = 0;
+    size_t poll_sz = 0;
     HSE_sink_res sres;
     HSE_poll_res pres;
     HSE_finish_res fres;
     io_handle *out = cfg->out;
 
-    uint16_t sunk = 0;
+    size_t sunk = 0;
     do {
         if (data_sz > 0) {
             sres = heatshrink_encoder_sink(hse, &data[sunk], data_sz - sunk, &sink_sz);
@@ -261,8 +261,8 @@ static int encode(config *cfg) {
 static int decoder_sink_read(config *cfg, heatshrink_decoder *hsd,
         uint8_t *data, size_t data_sz) {
     io_handle *out = cfg->out;
-    uint16_t sink_sz = 0;
-    uint16_t poll_sz = 0;
+    size_t sink_sz = 0;
+    size_t poll_sz = 0;
     size_t out_sz = 4096;
     uint8_t out_buf[out_sz];
     memset(out_buf, 0, out_sz);
@@ -271,7 +271,7 @@ static int decoder_sink_read(config *cfg, heatshrink_decoder *hsd,
     HSD_poll_res pres;
     HSD_finish_res fres;
 
-    uint16_t sunk = 0;
+    size_t sunk = 0;
     do {
         if (data_sz > 0) {
             sres = heatshrink_decoder_sink(hsd, &data[sunk], data_sz - sunk, &sink_sz);

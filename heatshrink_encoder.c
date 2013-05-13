@@ -16,8 +16,6 @@ typedef enum {
     HSES_DONE,                  /* done */
 } HSE_state;
 
-#include <assert.h>
-
 #if HEATSHRINK_DEBUGGING_LOGS
 #include <stdio.h>
 #include <ctype.h>
@@ -53,7 +51,7 @@ enum {
 typedef struct {
     uint8_t *buf;               /* output buffer */
     size_t buf_size;            /* buffer size */
-    uint16_t *output_size;      /* bytes pushed to buffer, so far */
+    size_t *output_size;      /* bytes pushed to buffer, so far */
 } output_info;
 
 #define MATCH_NOT_FOUND ((uint16_t)-1)
@@ -140,7 +138,7 @@ void heatshrink_encoder_reset(heatshrink_encoder *hse) {
 }
 
 HSE_sink_res heatshrink_encoder_sink(heatshrink_encoder *hse,
-        uint8_t *in_buf, size_t size, uint16_t *input_size) {
+        uint8_t *in_buf, size_t size, size_t *input_size) {
     if ((hse == NULL) || (in_buf == NULL) || (input_size == NULL))
         return HSER_SINK_ERROR_NULL;
 
@@ -192,7 +190,7 @@ static HSE_state st_flush_bit_buffer(heatshrink_encoder *hse,
     output_info *oi);
 
 HSE_poll_res heatshrink_encoder_poll(heatshrink_encoder *hse,
-        uint8_t *out_buf, size_t out_buf_size, uint16_t *output_size) {
+        uint8_t *out_buf, size_t out_buf_size, size_t *output_size) {
     if ((hse == NULL) || (out_buf == NULL) || (output_size == NULL))
         return HSER_POLL_ERROR_NULL;
     if (out_buf_size == 0) {
