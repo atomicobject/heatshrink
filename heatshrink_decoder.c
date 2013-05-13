@@ -2,16 +2,17 @@
 #include <string.h>
 #include "heatshrink_decoder.h"
 
+/* States for the polling state machine. */
 typedef enum {
-    HSDS_EMPTY,
-    HSDS_INPUT_AVAILABLE,
-    HSDS_YIELD_LITERAL,
-    HSDS_BACKREF_INDEX_MSB,
-    HSDS_BACKREF_INDEX_LSB,
-    HSDS_BACKREF_COUNT_MSB,
-    HSDS_BACKREF_COUNT_LSB,
-    HSDS_YIELD_BACKREF,
-    HSDS_CHECK_FOR_MORE_INPUT,
+    HSDS_EMPTY,                 /* no input to process */
+    HSDS_INPUT_AVAILABLE,       /* new input, completely unprocessed */
+    HSDS_YIELD_LITERAL,         /* ready to yield literal byte */
+    HSDS_BACKREF_INDEX_MSB,     /* most significant byte of index */
+    HSDS_BACKREF_INDEX_LSB,     /* least significant byte of index */
+    HSDS_BACKREF_COUNT_MSB,     /* most significant byte of count */
+    HSDS_BACKREF_COUNT_LSB,     /* least significant byte of count */
+    HSDS_YIELD_BACKREF,         /* ready to yield back-reference */
+    HSDS_CHECK_FOR_MORE_INPUT,  /* check if input is exhausted */
 } HSD_state;
 
 #include <assert.h>
@@ -250,7 +251,7 @@ static HSD_state st_backref_count_msb(heatshrink_decoder *hsd) {
     uint8_t br_bit_ct = BACKREF_COUNT_BITS(hsd);
     ASSERT(br_bit_ct > 8);
     uint32_t bits = get_bits(hsd, br_bit_ct - 8);
-    LOG("-- backref count, got 0x%04x (+1)\n", bits);
+    LOG("-- backref count (msb), got 0x%04x (+1)\n", bits);
     if (bits == (uint32_t)-1) return HSDS_BACKREF_COUNT_MSB;
     hsd->output_count = bits << 8;
     return HSDS_BACKREF_COUNT_LSB;
@@ -259,7 +260,7 @@ static HSD_state st_backref_count_msb(heatshrink_decoder *hsd) {
 static HSD_state st_backref_count_lsb(heatshrink_decoder *hsd) {
     uint8_t br_bit_ct = BACKREF_COUNT_BITS(hsd);
     uint32_t bits = get_bits(hsd, br_bit_ct < 8 ? br_bit_ct : 8);
-    LOG("-- backref count, got 0x%04x (+1)\n", bits);
+    LOG("-- backref count (lsb), got 0x%04x (+1)\n", bits);
     if (bits == (uint32_t)-1) return HSDS_BACKREF_COUNT_LSB;
     hsd->output_count |= bits;
     hsd->output_count++;
