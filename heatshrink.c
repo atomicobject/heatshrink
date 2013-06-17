@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
-#include <err.h>
 #include <fcntl.h>
 
 #include "heatshrink_encoder.h"
@@ -20,6 +19,18 @@
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define LOG(...) /* NO-OP */
+#endif
+
+#if _WIN32
+#include <errno.h>
+#define HEATSHRINK_ERR(retval, ...) do { \
+fprintf(stderr, __VA_ARGS__); \
+fprintf(stderr, "Undefined error: %d\n", errno); \
+exit(retval); \
+} while(0)
+#else
+#include <err.h>
+#define HEATSHRINK_ERR(...) err(__VA_ARGS__)
 #endif
 
 static const int version_major = HEATSHRINK_VERSION_MAJOR;
@@ -93,7 +104,7 @@ static io_handle *handle_open(char *fname, IO_mode m, size_t buf_sz) {
 
     if (io->fd == -1) {         /* failed to open */
         free(io);
-        err(1, "open");
+        HEATSHRINK_ERR(1, "open");
         return NULL;
     }
 
@@ -125,10 +136,10 @@ static size_t handle_read(io_handle *io, size_t size, uint8_t **buf) {
         io->fill -= io->read;
         io->read = 0;
         ssize_t read_sz = read(io->fd, &io->buf[io->fill], io->size - io->fill);
-        if (read_sz < 0) err(1, "read");
+        if (read_sz < 0) HEATSHRINK_ERR(1, "read");
         io->total += read_sz;
         if (read_sz == 0) {     /* EOF */
-            if (close(io->fd) < 0) err(1, "close");
+            if (close(io->fd) < 0) HEATSHRINK_ERR(1, "close");
             io->fd = -1;
         }
         io->fill += read_sz;
@@ -163,7 +174,7 @@ static ssize_t handle_sink(io_handle *io, size_t size, uint8_t *input) {
         size_t written = write(io->fd, io->buf, io->fill);
         LOG("@ flushing %zd, wrote %zd\n", io->fill, written);
         io->total += written;
-        if (written == -1) err(1, "write");
+        if (written == -1) HEATSHRINK_ERR(1, "write");
         memmove(io->buf, &io->buf[written], io->fill - written);
         io->fill -= written;
     }
@@ -178,7 +189,7 @@ static void handle_close(io_handle *io) {
             size_t written = write(io->fd, io->buf, io->fill);
             io->total += written;
             LOG("@ close: flushing %zd, wrote %zd\n", io->fill, written);
-            if (written == -1) err(1, "write");
+            if (written == -1) HEATSHRINK_ERR(1, "write");
         }
         close(io->fd);
         io->fd = -1;
@@ -252,7 +263,7 @@ static int encode(config *cfg) {
         if (handle_drop(in, read_sz) < 0) die("drop");
     };
 
-    if (read_sz == -1) err(1, "read");
+    if (read_sz == -1) HEATSHRINK_ERR(1, "read");
 
     heatshrink_encoder_free(hse);
     close_and_report(cfg);
@@ -329,7 +340,7 @@ static int decode(config *cfg) {
             if (handle_drop(in, read_sz) < 0) die("drop");
         }
     }
-    if (read_sz == -1) err(1, "read");
+    if (read_sz == -1) HEATSHRINK_ERR(1, "read");
         
     heatshrink_decoder_free(hsd);
     close_and_report(cfg);
