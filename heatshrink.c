@@ -91,13 +91,21 @@ static io_handle *handle_open(char *fname, IO_mode m, size_t buf_sz) {
         if (0 == strcmp("-", fname)) {
             io->fd = STDIN_FILENO;
         } else {
-            io->fd = open(fname, O_RDONLY);
+            int oflags = O_RDONLY;
+#if _WIN32
+            oflags |= O_BINARY;
+#endif
+            io->fd = open(fname, oflags);
         }
     } else if (m == IO_WRITE) {
         if (0 == strcmp("-", fname)) {
             io->fd = STDOUT_FILENO;
         } else {
-            io->fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC /*| O_EXCL*/, 0644);
+            int oflags = O_WRONLY | O_CREAT | O_TRUNC /*| O_EXCL*/;
+#if _WIN32
+            oflags |= O_BINARY;
+#endif
+            io->fd = open(fname, oflags, 0644);
         }
     }
 
