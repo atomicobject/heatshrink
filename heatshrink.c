@@ -10,9 +10,15 @@
 #include "heatshrink_encoder.h"
 #include "heatshrink_decoder.h"
 
+#if HEATSHRINK_DYNAMIC_ALLOC
 #define DEF_WINDOW_SZ2 11
 #define DEF_LOOKAHEAD_SZ2 4
 #define DEF_DECODER_INPUT_BUFFER_SIZE 256
+#else
+#define DEF_WINDOW_SZ2 HEATSHRINK_STATIC_WINDOW_BITS
+#define DEF_LOOKAHEAD_SZ2 HEATSHRINK_STATIC_LOOKAHEAD_BITS
+#define DEF_DECODER_INPUT_BUFFER_SIZE HEATSHRINK_STATIC_INPUT_BUFFER_SIZE
+#endif
 #define DEF_BUFFER_SIZE (64 * 1024)
 
 #if 0
@@ -397,6 +403,7 @@ static void proc_args(config *cfg, int argc, char **argv) {
             cfg->cmd = OP_ENC; break;
         case 'd':               /* decode */
             cfg->cmd = OP_DEC; break;
+#if HEATSHRINK_DYNAMIC_ALLOC
         case 'i':               /* input buffer size */
             cfg->decoder_input_buffer_size = atoi(optarg);
             break;
@@ -406,6 +413,13 @@ static void proc_args(config *cfg, int argc, char **argv) {
         case 'l':               /* lookahead bits */
             cfg->lookahead_sz2 = atoi(optarg);
             break;
+#else
+        case 'i':
+        case 'w':
+        case 'l':
+            printf("parameter %c ignored\n", a);
+            break;
+#endif
         case 'v':               /* verbosity++ */
             cfg->verbose++;
             break;
