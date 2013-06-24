@@ -1,8 +1,10 @@
 #ifndef HEATSHRINK_CONFIG_H
 #define HEATSHRINK_CONFIG_H
 
+#ifndef HEATSHRINK_DYNAMIC_ALLOC
 /* Should functionality assuming dynamic allocation be used? */
 #define HEATSHRINK_DYNAMIC_ALLOC 1
+#endif
 
 #if HEATSHRINK_DYNAMIC_ALLOC
     /* Optional replacement of malloc/free */
@@ -26,10 +28,14 @@
 #endif
 #endif
 
+#ifndef HEATSHRINK_DEBUGGING_LOGS
 /* Turn on logging for debugging. */
 #define HEATSHRINK_DEBUGGING_LOGS 0
+#endif
 
+#ifndef HEATSHRINK_USE_INDEX
 /* Use indexing for faster compression. (This requires additional space.) */
 #define HEATSHRINK_USE_INDEX 1
+#endif
 
 #endif
