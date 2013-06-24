@@ -21,7 +21,7 @@
 #define LOG(...) /* NO-OP */
 #endif
 
-#if _WIN32 || __MICROBLAZE__
+#if HEATSHRINK_NEEDS_EXPLICIT_ERRNO
 #include <errno.h>
 #define HEATSHRINK_ERR(retval, ...) do { \
 fprintf(stderr, __VA_ARGS__); \
