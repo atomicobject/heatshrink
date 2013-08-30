@@ -15,7 +15,6 @@ typedef enum {
     HSDS_CHECK_FOR_MORE_INPUT,  /* check if input is exhausted */
 } HSD_state;
 
-#include <assert.h>
 #if HEATSHRINK_DEBUGGING_LOGS
 #include <stdio.h>
 #include <ctype.h>
@@ -33,8 +32,7 @@ static const char *state_names[] = {
 };
 #else
 #define LOG(...) /* no-op */
-//#define ASSERT(X) /* no-op */
-#define ASSERT(X) assert(X)
+#define ASSERT(X) /* no-op */
 #endif
 
 typedef struct {
