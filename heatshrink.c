@@ -29,7 +29,7 @@ static const char author[] = HEATSHRINK_AUTHOR;
 static void usage() {
     fprintf(stderr, "heatshrink version %u.%u.%u by %s\n",
         version_major, version_minor, version_patch, author);
-    fprintf(stderr, "usage: heatshrink [-h] [-e|-d] [v] [-w BITS] [-l BITS] [IN_FILE] [OUT_FILE]\n");
+    fprintf(stderr, "usage: heatshrink [-h] [-e|-d] [-v] [-w BITS] [-l BITS] [IN_FILE] [OUT_FILE]\n");
     exit(1);
 }
 
