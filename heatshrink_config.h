@@ -15,6 +15,17 @@
     #define HEATSHRINK_STATIC_LOOKAHEAD_BITS 4
 #endif
 
+#ifndef HEATSHRINK_NEEDS_EXPLICIT_ERRNO
+/* Either define this outside of the configuration as build parameter or
+ * it will be chosen automatically.
+ */
+#if _WIN32 || __MICROBLAZE__
+#define HEATSHRINK_NEEDS_EXPLICIT_ERRNO 1
+#else
+#define HEATSHRINK_NEEDS_EXPLICIT_ERRNO 0
+#endif
+#endif
+
 /* Turn on logging for debugging. */
 #define HEATSHRINK_DEBUGGING_LOGS 0
 

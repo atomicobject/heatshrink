@@ -4,3 +4,4 @@ test_heatshrink_static
 *.o
 *.core
 *.dSYM
+*.exe
