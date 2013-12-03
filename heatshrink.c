@@ -1,24 +1,42 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
-#include <err.h>
 #include <fcntl.h>
 
 #include "heatshrink_encoder.h"
 #include "heatshrink_decoder.h"
 
+#if HEATSHRINK_DYNAMIC_ALLOC
 #define DEF_WINDOW_SZ2 11
 #define DEF_LOOKAHEAD_SZ2 4
 #define DEF_DECODER_INPUT_BUFFER_SIZE 256
+#else
+#define DEF_WINDOW_SZ2 HEATSHRINK_STATIC_WINDOW_BITS
+#define DEF_LOOKAHEAD_SZ2 HEATSHRINK_STATIC_LOOKAHEAD_BITS
+#define DEF_DECODER_INPUT_BUFFER_SIZE HEATSHRINK_STATIC_INPUT_BUFFER_SIZE
+#endif
 #define DEF_BUFFER_SIZE (64 * 1024)
 
 #if 0
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define LOG(...) /* NO-OP */
+#endif
+
+#if _WIN32 || __MICROBLAZE__
+#include <errno.h>
+#define HEATSHRINK_ERR(retval, ...) do { \
+fprintf(stderr, __VA_ARGS__); \
+fprintf(stderr, "Undefined error: %d\n", errno); \
+exit(retval); \
+} while(0)
+#else
+#include <err.h>
+#define HEATSHRINK_ERR(...) err(__VA_ARGS__)
 #endif
 
 static const int version_major = HEATSHRINK_VERSION_MAJOR;
@@ -80,19 +98,27 @@ static io_handle *handle_open(char *fname, IO_mode m, size_t buf_sz) {
         if (0 == strcmp("-", fname)) {
             io->fd = STDIN_FILENO;
         } else {
-            io->fd = open(fname, O_RDONLY);
+            int oflags = O_RDONLY;
+#if _WIN32
+            oflags |= O_BINARY;
+#endif
+            io->fd = open(fname, oflags);
         }
     } else if (m == IO_WRITE) {
         if (0 == strcmp("-", fname)) {
             io->fd = STDOUT_FILENO;
         } else {
-            io->fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC /*| O_EXCL*/, 0644);
+            int oflags = O_WRONLY | O_CREAT | O_TRUNC /*| O_EXCL*/;
+#if _WIN32
+            oflags |= O_BINARY;
+#endif
+            io->fd = open(fname, oflags, 0644);
         }
     }
 
     if (io->fd == -1) {         /* failed to open */
         free(io);
-        err(1, "open");
+        HEATSHRINK_ERR(1, "open");
         return NULL;
     }
 
@@ -124,10 +150,10 @@ static size_t handle_read(io_handle *io, size_t size, uint8_t **buf) {
         io->fill -= io->read;
         io->read = 0;
         ssize_t read_sz = read(io->fd, &io->buf[io->fill], io->size - io->fill);
-        if (read_sz < 0) err(1, "read");
+        if (read_sz < 0) HEATSHRINK_ERR(1, "read");
         io->total += read_sz;
         if (read_sz == 0) {     /* EOF */
-            if (close(io->fd) < 0) err(1, "close");
+            if (close(io->fd) < 0) HEATSHRINK_ERR(1, "close");
             io->fd = -1;
         }
         io->fill += read_sz;
@@ -162,7 +188,7 @@ static ssize_t handle_sink(io_handle *io, size_t size, uint8_t *input) {
         size_t written = write(io->fd, io->buf, io->fill);
         LOG("@ flushing %zd, wrote %zd\n", io->fill, written);
         io->total += written;
-        if (written == -1) err(1, "write");
+        if (written == -1) HEATSHRINK_ERR(1, "write");
         memmove(io->buf, &io->buf[written], io->fill - written);
         io->fill -= written;
     }
@@ -177,7 +203,7 @@ static void handle_close(io_handle *io) {
             size_t written = write(io->fd, io->buf, io->fill);
             io->total += written;
             LOG("@ close: flushing %zd, wrote %zd\n", io->fill, written);
-            if (written == -1) err(1, "write");
+            if (written == -1) HEATSHRINK_ERR(1, "write");
         }
         close(io->fd);
         io->fd = -1;
@@ -230,8 +256,13 @@ static int encoder_sink_read(config *cfg, heatshrink_encoder *hse,
 static int encode(config *cfg) {
     uint8_t window_sz2 = cfg->window_sz2;
     size_t window_sz = 1 << window_sz2; 
+#if HEATSHRINK_DYNAMIC_ALLOC
     heatshrink_encoder *hse = heatshrink_encoder_alloc(window_sz2, cfg->lookahead_sz2);
     if (hse == NULL) die("failed to init encoder: bad settings");
+#else
+    heatshrink_encoder i_hse, *hse = &i_hse;
+    memset(hse, 0, sizeof(*hse));
+#endif
     ssize_t read_sz = 0;
     io_handle *in = cfg->in;
 
@@ -251,9 +282,11 @@ static int encode(config *cfg) {
         if (handle_drop(in, read_sz) < 0) die("drop");
     };
 
-    if (read_sz == -1) err(1, "read");
+    if (read_sz == -1) HEATSHRINK_ERR(1, "read");
 
+#if HEATSHRINK_DYNAMIC_ALLOC
     heatshrink_encoder_free(hse);
+#endif
     close_and_report(cfg);
     return 0;
 }
@@ -298,10 +331,14 @@ static int decoder_sink_read(config *cfg, heatshrink_decoder *hsd,
 static int decode(config *cfg) {
     uint8_t window_sz2 = cfg->window_sz2;
     size_t window_sz = 1 << window_sz2;
+#if HEATSHRINK_DYNAMIC_ALLOC
     size_t ibs = cfg->decoder_input_buffer_size;
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(ibs,
-        window_sz2, cfg->lookahead_sz2);
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(ibs, window_sz2, cfg->lookahead_sz2);
     if (hsd == NULL) die("failed to init decoder");
+#else
+    heatshrink_decoder i_hsd, *hsd = &i_hsd;
+    memset(hsd, 0, sizeof(*hsd));
+#endif
 
     ssize_t read_sz = 0;
 
@@ -328,9 +365,12 @@ static int decode(config *cfg) {
             if (handle_drop(in, read_sz) < 0) die("drop");
         }
     }
-    if (read_sz == -1) err(1, "read");
-        
+    if (read_sz == -1) HEATSHRINK_ERR(1, "read");
+
+#if HEATSHRINK_DYNAMIC_ALLOC
     heatshrink_decoder_free(hsd);
+#endif
+
     close_and_report(cfg);
     return 0;
 }
@@ -363,6 +403,7 @@ static void proc_args(config *cfg, int argc, char **argv) {
             cfg->cmd = OP_ENC; break;
         case 'd':               /* decode */
             cfg->cmd = OP_DEC; break;
+#if HEATSHRINK_DYNAMIC_ALLOC
         case 'i':               /* input buffer size */
             cfg->decoder_input_buffer_size = atoi(optarg);
             break;
@@ -372,6 +413,13 @@ static void proc_args(config *cfg, int argc, char **argv) {
         case 'l':               /* lookahead bits */
             cfg->lookahead_sz2 = atoi(optarg);
             break;
+#else
+        case 'i':
+        case 'w':
+        case 'l':
+            printf("parameter %c ignored\n", a);
+            break;
+#endif
         case 'v':               /* verbosity++ */
             cfg->verbose++;
             break;
