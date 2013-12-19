@@ -129,7 +129,7 @@ TEST encoder_should_emit_data_without_repetitions_as_literal_sequence(void) {
     pres = heatshrink_encoder_poll(hse, output, 1024, &copied);
     ASSERT_EQ(HSER_POLL_EMPTY, pres);
 
-    for (int i=0; i<sizeof(expected); i++) {
+    for (size_t i=0; i<sizeof(expected); i++) {
         ASSERT_EQ(expected[i], output[i]);
     }
 
@@ -166,7 +166,7 @@ TEST encoder_should_emit_series_of_same_byte_as_literal_then_backref(void) {
     ASSERT_EQ(HSER_POLL_EMPTY, pres);
     ASSERT_EQ(4, copied);
     if (0) dump_buf("output", output, copied);
-    for (int i=0; i<copied; i++) ASSERT_EQ(expected[i], output[i]);
+    for (size_t i=0; i<copied; i++) ASSERT_EQ(expected[i], output[i]);
 
     ASSERT_EQ(HSER_FINISH_DONE, heatshrink_encoder_finish(hse));
     
@@ -196,7 +196,7 @@ TEST encoder_poll_should_detect_repeated_substring(void) {
 
     if (0) dump_buf("output", output, copied);
     ASSERT_EQ(sizeof(expected), copied);
-    for (int i=0; i<sizeof(expected); i++) ASSERT_EQ(expected[i], output[i]);
+    for (size_t i=0; i<sizeof(expected); i++) ASSERT_EQ(expected[i], output[i]);
     heatshrink_encoder_free(hse);
     PASS();
 }
@@ -222,7 +222,7 @@ TEST encoder_poll_should_detect_repeated_substring_and_preserve_trailing_literal
 
     if (0) dump_buf("output", output, copied);
     ASSERT_EQ(sizeof(expected), copied);
-    for (int i=0; i<sizeof(expected); i++) ASSERT_EQ(expected[i], output[i]);
+    for (size_t i=0; i<sizeof(expected); i++) ASSERT_EQ(expected[i], output[i]);
     heatshrink_encoder_free(hse);
     PASS();
 }
@@ -415,7 +415,7 @@ TEST decoder_poll_should_expand_short_self_overlapping_backref(void) {
 
     if (0) dump_buf("output", output, out_sz);
     ASSERT_EQ(sizeof(expected), out_sz);
-    for (int i=0; i<sizeof(expected); i++) ASSERT_EQ(expected[i], output[i]);
+    for (size_t i=0; i<sizeof(expected); i++) ASSERT_EQ(expected[i], output[i]);
 
     heatshrink_decoder_free(hsd);
     PASS();
@@ -550,7 +550,7 @@ TEST gen(void) {
     ASSERT_EQ(HSER_FINISH_DONE, fres);
     if (0) {
         printf("{");
-        for (int i=0; i<copied; i++) printf("0x%02x, ", output[i]);
+        for (size_t i=0; i<copied; i++) printf("0x%02x, ", output[i]);
         printf("}\n");
     }
     heatshrink_encoder_free(hse);
@@ -678,11 +678,11 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cf
     }
 
     if (cfg->log_lvl > 1) dump_buf("decomp", decomp, polled);
-    for (int i=0; i<input_size; i++) {
+    for (uint32_t i=0; i<input_size; i++) {
         if (input[i] != decomp[i]) {
             printf("*** mismatch at %d\n", i);
             if (0) {
-                for (int j=0; j<=/*i*/ input_size; j++) {
+                for (uint32_t j=0; j<=/*i*/ input_size; j++) {
                     printf("in[%d] == 0x%02x ('%c') => out[%d] == 0x%02x ('%c')  %c\n",
                         j, input[j], isprint(input[j]) ? input[j] : '.',
                         j, decomp[j], isprint(decomp[j]) ? decomp[j] : '.',
@@ -736,7 +736,7 @@ TEST data_without_duplication_should_match_with_absurdly_tiny_buffers(void) {
     int log = 0;
 
     if (log) dump_buf("input", input, sizeof(input));
-    for (int i=0; i<sizeof(input); i++) {
+    for (uint32_t i=0; i<sizeof(input); i++) {
         ASSERT(heatshrink_encoder_sink(hse, &input[i], 1, &count) >= 0);
     }
     ASSERT_EQ(HSER_FINISH_MORE, heatshrink_encoder_finish(hse));
@@ -748,18 +748,18 @@ TEST data_without_duplication_should_match_with_absurdly_tiny_buffers(void) {
     } while (heatshrink_encoder_finish(hse) == HSER_FINISH_MORE);
 
     if (log) dump_buf("comp", comp, packed_count);
-    for (int i=0; i<packed_count; i++) {
+    for (uint32_t i=0; i<packed_count; i++) {
         HSD_sink_res sres = heatshrink_decoder_sink(hsd, &comp[i], 1, &count);
         //printf("sres is %d\n", sres);
         ASSERT(sres >= 0);
     }
 
-    for (int i=0; i<sizeof(input); i++) {
+    for (uint32_t i=0; i<sizeof(input); i++) {
         ASSERT(heatshrink_decoder_poll(hsd, &decomp[i], 1, &count) >= 0);
     }
 
     if (log) dump_buf("decomp", decomp, sizeof(input));
-    for (int i=0; i<sizeof(input); i++) ASSERT_EQ(input[i], decomp[i]);
+    for (uint32_t i=0; i<sizeof(input); i++) ASSERT_EQ(input[i], decomp[i]);
     heatshrink_encoder_free(hse);
     heatshrink_decoder_free(hsd);
     PASS();
@@ -778,7 +778,7 @@ TEST data_with_simple_repetition_should_match_with_absurdly_tiny_buffers(void) {
     int log = 0;
 
     if (log) dump_buf("input", input, sizeof(input));
-    for (int i=0; i<sizeof(input); i++) {
+    for (uint32_t i=0; i<sizeof(input); i++) {
         ASSERT(heatshrink_encoder_sink(hse, &input[i], 1, &count) >= 0);
     }
     ASSERT_EQ(HSER_FINISH_MORE, heatshrink_encoder_finish(hse));
@@ -790,18 +790,18 @@ TEST data_with_simple_repetition_should_match_with_absurdly_tiny_buffers(void) {
     } while (heatshrink_encoder_finish(hse) == HSER_FINISH_MORE);
 
     if (log) dump_buf("comp", comp, packed_count);
-    for (int i=0; i<packed_count; i++) {
+    for (uint32_t i=0; i<packed_count; i++) {
         HSD_sink_res sres = heatshrink_decoder_sink(hsd, &comp[i], 1, &count);
         //printf("sres is %d\n", sres);
         ASSERT(sres >= 0);
     }
 
-    for (int i=0; i<sizeof(input); i++) {
+    for (uint32_t i=0; i<sizeof(input); i++) {
         ASSERT(heatshrink_decoder_poll(hsd, &decomp[i], 1, &count) >= 0);
     }
 
     if (log) dump_buf("decomp", decomp, sizeof(input));
-    for (int i=0; i<sizeof(input); i++) ASSERT_EQ(input[i], decomp[i]);
+    for (uint32_t i=0; i<sizeof(input); i++) ASSERT_EQ(input[i], decomp[i]);
     heatshrink_encoder_free(hse);
     heatshrink_decoder_free(hsd);
     PASS();

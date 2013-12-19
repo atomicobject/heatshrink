@@ -277,7 +277,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
         ASSERT(neg_offset < mask + 1);
         ASSERT(count <= 1 << BACKREF_COUNT_BITS(hsd));
 
-        for (int i=0; i<count; i++) {
+        for (size_t i=0; i<count; i++) {
             uint8_t c = buf[(hsd->head_index - neg_offset) & mask];
             push_byte(hsd, oi, c);
             buf[hsd->head_index & mask] = c;
@@ -340,7 +340,7 @@ static uint32_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
     uint32_t res = 0;
     res = hsd->bit_accumulator;
     hsd->bit_accumulator = 0x00000000;
-    if (count > 1) LOG("  -- accumulated %08x\n", res);
+    if (count > 1) { LOG("  -- accumulated %08x\n", res); }
     return res;
 }
 
@@ -367,4 +367,5 @@ HSD_finish_res heatshrink_decoder_finish(heatshrink_decoder *hsd) {
 static void push_byte(heatshrink_decoder *hsd, output_info *oi, uint8_t byte) {
     LOG(" -- pushing byte: 0x%02x ('%c')\n", byte, isprint(byte) ? byte : '.');
     oi->buf[(*oi->output_size)++] = byte;
+    (void)hsd;
 }

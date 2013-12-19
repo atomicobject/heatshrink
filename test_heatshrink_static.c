@@ -115,12 +115,12 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
     }
 
     if (log_lvl > 1) dump_buf("decomp", decomp, polled);
-    for (int i=0; i<input_size; i++) {
+    for (size_t i=0; i<input_size; i++) {
         if (input[i] != decomp[i]) {
-            printf("*** mismatch at %d\n", i);
+            printf("*** mismatch at %zd\n", i);
             if (0) {
-                for (int j=0; j<=/*i*/ input_size; j++) {
-                    printf("in[%d] == 0x%02x ('%c') => out[%d] == 0x%02x ('%c')\n",
+                for (size_t j=0; j<=/*i*/ input_size; j++) {
+                    printf("in[%zd] == 0x%02x ('%c') => out[%zd] == 0x%02x ('%c')\n",
                         j, input[j], isprint(input[j]) ? input[j] : '.',
                         j, decomp[j], isprint(decomp[j]) ? decomp[j] : '.');
                 }
