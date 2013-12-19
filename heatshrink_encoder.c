@@ -173,7 +173,7 @@ HSE_sink_res heatshrink_encoder_sink(heatshrink_encoder *hse,
  ***************/
 
 static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
-    uint16_t end, uint16_t maxlen, uint16_t *match_length);
+    uint16_t end, const uint16_t maxlen, uint16_t *match_length);
 static void do_indexing(heatshrink_encoder *hse);
 
 static HSE_state st_step_search(heatshrink_encoder *hse);
@@ -483,7 +483,7 @@ static int can_take_byte(output_info *oi) {
 /* Return the longest match for the bytes at buf[end:end+maxlen] between
  * buf[start] and buf[end-1]. If no match is found, return -1. */
 static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
-        uint16_t end, uint16_t maxlen, uint16_t *match_length) {
+        uint16_t end, const uint16_t maxlen, uint16_t *match_length) {
     LOG("-- scanning for match of buf[%u:%u] between buf[%u:%u] (max %u bytes)\n",
         end, end + maxlen, start, end + maxlen - 1, maxlen);
     uint8_t *buf = hse->buffer;
@@ -493,21 +493,23 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
 
     uint16_t match_maxlen = 0;
     uint16_t match_index = MATCH_NOT_FOUND;
-    uint16_t needle_index = end;
-    uint16_t break_even_point = 2;
+    const uint16_t needle_index = end;
+    const uint16_t break_even_point = 2;
     uint16_t len = 0;
+    uint8_t * const needlepoint = &buf[needle_index];
 #if HEATSHRINK_USE_INDEX
     struct hs_index *hsi = HEATSHRINK_ENCODER_INDEX(hse);
     uint16_t pos = hsi->index[end];
 
     if (pos < start) return MATCH_NOT_FOUND;
     while (pos != MATCH_NOT_FOUND) {
+        uint8_t * const pospoint = &buf[pos];
         for (len=0; len<maxlen; len++) {
             if (0) { LOG("    -- checking char %c at %d against %c at %d\n",
-                buf[pos + len], pos + len, buf[needle_index + len],
+                pospoint[len], pos + len, needlepoint[len],
                 needle_index + len);
             }
-            if (buf[pos + len] != buf[needle_index + len]) break;
+            if (pospoint[len] != needlepoint[len]) break; // HOTSPOT...
         }
         if (len > break_even_point) {
             if (len > match_maxlen) {
@@ -524,9 +526,9 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
         for (len=0; len<maxlen; len++) {
             if (0) {
                 LOG("  --> cmp buf[%d] == 0x%02x against %02x (start %u)\n",
-                pos + len, buf[pos + len], buf[needle_index + len], start);
+                pos + len, buf[pos + len], needlepoint[len], start);
             }
-            if (buf[pos + len] != buf[needle_index + len]) break;
+            if (buf[pos + len] != needlepoint[len]) break;
         }
         if (len > break_even_point) {
             if (len > match_maxlen) {
@@ -573,8 +575,8 @@ static void push_bits(heatshrink_encoder *hse, uint8_t count, uint8_t bits,
     ASSERT(count <= 8);
     LOG("++ push_bits: %d bits, input of 0x%02x\n", count, bits);
     for (int i=count - 1; i>=0; i--) {
-        uint8_t bit = bits & (1 << i);
-        if (bit) hse->current_byte |= hse->bit_index;
+        bool bit = bits & (1 << i);
+        if (bit) { hse->current_byte |= hse->bit_index; }
         if (0) {
             LOG("  -- setting bit %d at bit index 0x%02x, byte => 0x%02x\n",
             bit ? 1 : 0, hse->bit_index, hse->current_byte);
