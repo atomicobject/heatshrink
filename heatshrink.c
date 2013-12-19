@@ -162,7 +162,7 @@ static ssize_t handle_sink(io_handle *io, size_t size, uint8_t *input) {
         size_t written = write(io->fd, io->buf, io->fill);
         LOG("@ flushing %zd, wrote %zd\n", io->fill, written);
         io->total += written;
-        if (written == -1) err(1, "write");
+        if (written == (size_t)-1) err(1, "write");
         memmove(io->buf, &io->buf[written], io->fill - written);
         io->fill -= written;
     }
@@ -177,7 +177,7 @@ static void handle_close(io_handle *io) {
             size_t written = write(io->fd, io->buf, io->fill);
             io->total += written;
             LOG("@ close: flushing %zd, wrote %zd\n", io->fill, written);
-            if (written == -1) err(1, "write");
+            if (written == (size_t)-1) err(1, "write");
         }
         close(io->fd);
         io->fd = -1;
