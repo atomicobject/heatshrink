@@ -9,6 +9,8 @@
 #error HEATSHRINK_DYNAMIC_ALLOC must be false for static allocation test suite.
 #endif
 
+SUITE(integration);
+
 /* The majority of the tests are in test_heatshrink_dynamic, because that allows
  * instantiating encoders/decoders with different settings at run-time. */
 

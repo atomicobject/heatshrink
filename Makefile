@@ -2,8 +2,11 @@ PROJECT = heatshrink
 #OPTIMIZE = -O0
 #OPTIMIZE = -Os
 OPTIMIZE = -O3
-WARN = -Wall -pedantic #-Werror
+WARN = -Wall -pedantic -Werror
 CFLAGS += -std=c99 -g ${WARN} ${OPTIMIZE}
+CFLAGS += -Wmissing-prototypes
+CFLAGS += -Wstrict-prototypes
+CFLAGS += -Wmissing-declarations
 
 all:
 	@echo "For tests, make test_heatshrink_dynamic (default) or change the"
