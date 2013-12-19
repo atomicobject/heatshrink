@@ -40,3 +40,7 @@ documentation.
 
 [blog post]: http://spin.atomicobject.com/2013/03/14/heatshrink-embedded-data-compression/
 [LZSS]: http://en.wikipedia.org/wiki/Lempel-Ziv-Storer-Szymanski
+
+## Build Status
+
+  [![Build Status](https://travis-ci.org/atomicobject/heatshrink.png)](http://travis-ci.org/atomicobject/heatshrink)
