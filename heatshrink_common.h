@@ -3,10 +3,10 @@
 
 #define HEATSHRINK_AUTHOR "Scott Vokes <scott.vokes@atomicobject.com>"
 
-/* Version 0.2.0 */
+/* Version 0.2.1 */
 #define HEATSHRINK_VERSION_MAJOR 0
 #define HEATSHRINK_VERSION_MINOR 2
-#define HEATSHRINK_VERSION_PATCH 0
+#define HEATSHRINK_VERSION_PATCH 1
 
 #define HEATSHRINK_MIN_WINDOW_BITS 4
 #define HEATSHRINK_MAX_WINDOW_BITS 16
