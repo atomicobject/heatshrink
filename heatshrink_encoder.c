@@ -501,9 +501,10 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     if (pos < start) return MATCH_NOT_FOUND;
     while (pos != MATCH_NOT_FOUND) {
         for (len=0; len<maxlen; len++) {
-            if (0) LOG("    -- checking char %c at %d against %c at %d\n",
+            if (0) { LOG("    -- checking char %c at %d against %c at %d\n",
                 buf[pos + len], pos + len, buf[needle_index + len],
                 needle_index + len);
+            }
             if (buf[pos + len] != buf[needle_index + len]) break;
         }
         if (len > break_even_point) {
@@ -519,8 +520,10 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
 #else    
     for (uint16_t pos=end - 1; ; pos--) {
         for (len=0; len<maxlen; len++) {
-            if (0) LOG("  --> cmp buf[%d] == 0x%02x against %02x (start %u)\n",
+            if (0) {
+                LOG("  --> cmp buf[%d] == 0x%02x against %02x (start %u)\n",
                 pos + len, buf[pos + len], buf[needle_index + len], start);
+            }
             if (buf[pos + len] != buf[needle_index + len]) break;
         }
         if (len > break_even_point) {
@@ -570,8 +573,10 @@ static void push_bits(heatshrink_encoder *hse, uint8_t count, uint8_t bits,
     for (int i=count - 1; i>=0; i--) {
         uint8_t bit = bits & (1 << i);
         if (bit) hse->current_byte |= hse->bit_index;
-        if (0) LOG("  -- setting bit %d at bit index 0x%02x, byte => 0x%02x\n",
+        if (0) {
+            LOG("  -- setting bit %d at bit index 0x%02x, byte => 0x%02x\n",
             bit ? 1 : 0, hse->bit_index, hse->current_byte);
+        }
         hse->bit_index >>= 1;
         if (hse->bit_index == 0x00) {
             hse->bit_index = 0x80;

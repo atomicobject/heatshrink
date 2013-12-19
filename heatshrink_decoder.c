@@ -324,11 +324,15 @@ static uint32_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
         hsd->bit_accumulator <<= 1;
         if (hsd->current_byte & hsd->bit_index) {
             hsd->bit_accumulator |= 0x01;
-            if (0) LOG("  -- got 1, accumulator 0x%04x, bit_index 0x%02x\n",
+            if (0) {
+                LOG("  -- got 1, accumulator 0x%04x, bit_index 0x%02x\n",
                 hsd->bit_accumulator, hsd->bit_index);
+            }
         } else {
-            if (0) LOG("  -- got 0, accumulator 0x%04x, bit_index 0x%02x\n",
+            if (0) {
+                LOG("  -- got 0, accumulator 0x%04x, bit_index 0x%02x\n",
                 hsd->bit_accumulator, hsd->bit_index);
+            }
         }
         hsd->bit_index >>= 1;
     }
