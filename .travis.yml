@@ -1,0 +1,9 @@
+language: c
+
+compiler:
+    - clang
+    - gcc
+
+install: make test_heatshrink_dynamic
+
+script: ./test_heatshrink_dynamic
