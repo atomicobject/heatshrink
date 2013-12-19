@@ -2,7 +2,7 @@ PROJECT = heatshrink
 #OPTIMIZE = -O0
 #OPTIMIZE = -Os
 OPTIMIZE = -O3
-WARN = -Wall -pedantic -Werror
+WARN = -Wall -Wextra -pedantic #-Werror
 CFLAGS += -std=c99 -g ${WARN} ${OPTIMIZE}
 CFLAGS += -Wmissing-prototypes
 CFLAGS += -Wstrict-prototypes
