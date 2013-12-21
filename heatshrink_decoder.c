@@ -41,6 +41,8 @@ typedef struct {
     size_t *output_size;        /* bytes pushed to buffer, so far */
 } output_info;
 
+#define NO_BITS ((uint32_t)-1)
+
 /* Forward references. */
 static uint32_t get_bits(heatshrink_decoder *hsd, uint8_t count);
 static void push_byte(heatshrink_decoder *hsd, output_info *oi, uint8_t byte);
@@ -60,7 +62,7 @@ heatshrink_decoder *heatshrink_decoder_alloc(uint16_t input_buffer_size,
     size_t buffers_sz = (1 << window_sz2) + input_buffer_size;
     size_t sz = sizeof(heatshrink_decoder) + buffers_sz;
     heatshrink_decoder *hsd = HEATSHRINK_MALLOC(sz);
-    if (hsd == NULL) return NULL;
+    if (hsd == NULL) { return NULL; }
     hsd->input_buffer_size = input_buffer_size;
     hsd->window_sz2 = window_sz2;
     hsd->lookahead_sz2 = lookahead_sz2;
@@ -96,7 +98,9 @@ void heatshrink_decoder_reset(heatshrink_decoder *hsd) {
 /* Copy SIZE bytes into the decoder's input buffer, if it will fit. */
 HSD_sink_res heatshrink_decoder_sink(heatshrink_decoder *hsd,
         uint8_t *in_buf, size_t size, size_t *input_size) {
-    if ((hsd == NULL) || (in_buf == NULL) || (input_size == NULL)) return HSDR_SINK_ERROR_NULL;
+    if ((hsd == NULL) || (in_buf == NULL) || (input_size == NULL)) {
+        return HSDR_SINK_ERROR_NULL;
+    }
 
     size_t rem = HEATSHRINK_DECODER_INPUT_BUFFER_SIZE(hsd) - hsd->input_size;
     if (rem == 0) {
@@ -139,7 +143,9 @@ static HSD_state st_check_for_input(heatshrink_decoder *hsd);
 
 HSD_poll_res heatshrink_decoder_poll(heatshrink_decoder *hsd,
         uint8_t *out_buf, size_t out_buf_size, size_t *output_size) {
-    if ((hsd == NULL) || (out_buf == NULL) || (output_size == NULL)) return HSDR_POLL_ERROR_NULL;
+    if ((hsd == NULL) || (out_buf == NULL) || (output_size == NULL)) {
+        return HSDR_POLL_ERROR_NULL;
+    }
     *output_size = 0;
 
     output_info oi;
@@ -185,7 +191,7 @@ HSD_poll_res heatshrink_decoder_poll(heatshrink_decoder *hsd,
         /* If the current state cannot advance, check if input or output
          * buffer are exhausted. */
         if (hsd->state == in_state) {
-            if (*output_size == out_buf_size) return HSDR_POLL_MORE;
+            if (*output_size == out_buf_size) { return HSDR_POLL_MORE; }
             return HSDR_POLL_EMPTY;
         }
     }
@@ -210,7 +216,7 @@ static HSD_state st_yield_literal(heatshrink_decoder *hsd,
      * itself.)*/
     if (*oi->output_size < oi->buf_size) {
         uint32_t byte = get_bits(hsd, 8);
-        if (byte == (uint32_t)-1) return HSDS_YIELD_LITERAL; /* out of input */
+        if (byte == NO_BITS) { return HSDS_YIELD_LITERAL; } /* out of input */
         uint8_t *buf = &hsd->buffers[HEATSHRINK_DECODER_INPUT_BUFFER_SIZE(hsd)];
         uint16_t mask = (1 << HEATSHRINK_DECODER_WINDOW_BITS(hsd))  - 1;
         uint8_t c = byte & 0xFF;
@@ -228,7 +234,7 @@ static HSD_state st_backref_index_msb(heatshrink_decoder *hsd) {
     ASSERT(bit_ct > 8);
     uint32_t bits = get_bits(hsd, bit_ct - 8);
     LOG("-- backref index (msb), got 0x%04x (+1)\n", bits);
-    if (bits == (uint32_t)-1) return HSDS_BACKREF_INDEX_MSB;
+    if (bits == NO_BITS) { return HSDS_BACKREF_INDEX_MSB; }
     hsd->output_index = bits << 8;
     return HSDS_BACKREF_INDEX_LSB;
 }
@@ -237,7 +243,7 @@ static HSD_state st_backref_index_lsb(heatshrink_decoder *hsd) {
     uint8_t bit_ct = BACKREF_INDEX_BITS(hsd);
     uint32_t bits = get_bits(hsd, bit_ct < 8 ? bit_ct : 8);
     LOG("-- backref index (lsb), got 0x%04x (+1)\n", bits);
-    if (bits == (uint32_t)-1) return HSDS_BACKREF_INDEX_LSB;
+    if (bits == NO_BITS) { return HSDS_BACKREF_INDEX_LSB; }
     hsd->output_index |= bits;
     hsd->output_index++;
     uint8_t br_bit_ct = BACKREF_COUNT_BITS(hsd);
@@ -250,7 +256,7 @@ static HSD_state st_backref_count_msb(heatshrink_decoder *hsd) {
     ASSERT(br_bit_ct > 8);
     uint32_t bits = get_bits(hsd, br_bit_ct - 8);
     LOG("-- backref count (msb), got 0x%04x (+1)\n", bits);
-    if (bits == (uint32_t)-1) return HSDS_BACKREF_COUNT_MSB;
+    if (bits == NO_BITS) { return HSDS_BACKREF_COUNT_MSB; }
     hsd->output_count = bits << 8;
     return HSDS_BACKREF_COUNT_LSB;
 }
@@ -259,7 +265,7 @@ static HSD_state st_backref_count_lsb(heatshrink_decoder *hsd) {
     uint8_t br_bit_ct = BACKREF_COUNT_BITS(hsd);
     uint32_t bits = get_bits(hsd, br_bit_ct < 8 ? br_bit_ct : 8);
     LOG("-- backref count (lsb), got 0x%04x (+1)\n", bits);
-    if (bits == (uint32_t)-1) return HSDS_BACKREF_COUNT_LSB;
+    if (bits == NO_BITS) { return HSDS_BACKREF_COUNT_LSB; }
     hsd->output_count |= bits;
     hsd->output_count++;
     return HSDS_YIELD_BACKREF;
@@ -285,7 +291,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
             LOG("  -- ++ 0x%02x\n", c);
         }
         hsd->output_count -= count;
-        if (hsd->output_count == 0) return HSDS_CHECK_FOR_MORE_INPUT;
+        if (hsd->output_count == 0) { return HSDS_CHECK_FOR_MORE_INPUT; }
     }
     return HSDS_YIELD_BACKREF;
 }
@@ -295,15 +301,15 @@ static HSD_state st_check_for_input(heatshrink_decoder *hsd) {
 }
     
 /* Get the next COUNT bits from the input buffer, saving incremental progress.
- * Returns (uint32_t)-1 on end of input, or if more than 31 bits are requested. */
+ * Returns NO_BITS on end of input, or if more than 31 bits are requested. */
 static uint32_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
-    if (count > 31) return (uint32_t)-1;
+    if (count > 31) { return NO_BITS; }
     LOG("-- popping %u bit(s)\n", count);
 
     /* If we aren't able to get COUNT bits, suspend immediately, because we
      * don't track how many bits of COUNT we've accumulated before suspend. */
     if (hsd->input_size == 0) {
-        if (hsd->bit_index < (1 << (count - 1))) return -1;
+        if (hsd->bit_index < (1 << (count - 1))) { return NO_BITS; }
     }
 
     for (int i = 0; i < count; i++) {
@@ -311,7 +317,7 @@ static uint32_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
             if (hsd->input_size == 0) {
                 LOG("  -- out of bits, suspending w/ accumulator of %u (0x%02x)\n",
                     hsd->bit_accumulator, hsd->bit_accumulator);
-                return (uint32_t)-1;
+                return NO_BITS;
             }
             hsd->current_byte = hsd->buffers[hsd->input_index++];
             LOG("  -- pulled byte 0x%02x\n", hsd->current_byte);
@@ -345,7 +351,7 @@ static uint32_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
 }
 
 HSD_finish_res heatshrink_decoder_finish(heatshrink_decoder *hsd) {
-    if (hsd == NULL) return HSDR_FINISH_ERROR_NULL;
+    if (hsd == NULL) { return HSDR_FINISH_ERROR_NULL; }
     switch (hsd->state) {
     case HSDS_EMPTY:
         return HSDR_FINISH_DONE;

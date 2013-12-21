@@ -51,7 +51,7 @@ enum {
 typedef struct {
     uint8_t *buf;               /* output buffer */
     size_t buf_size;            /* buffer size */
-    size_t *output_size;      /* bytes pushed to buffer, so far */
+    size_t *output_size;        /* bytes pushed to buffer, so far */
 } output_info;
 
 #define MATCH_NOT_FOUND ((uint16_t)-1)
@@ -86,7 +86,7 @@ heatshrink_encoder *heatshrink_encoder_alloc(uint8_t window_sz2,
     }
     size_t buf_sz = (2 << window_sz2);
     heatshrink_encoder *hse = HEATSHRINK_MALLOC(sizeof(*hse) + buf_sz);
-    if (hse == NULL) return NULL;
+    if (hse == NULL) { return NULL; }
     hse->window_sz2 = window_sz2;
     hse->lookahead_sz2 = lookahead_sz2;
     heatshrink_encoder_reset(hse);
@@ -139,14 +139,15 @@ void heatshrink_encoder_reset(heatshrink_encoder *hse) {
 
 HSE_sink_res heatshrink_encoder_sink(heatshrink_encoder *hse,
         uint8_t *in_buf, size_t size, size_t *input_size) {
-    if ((hse == NULL) || (in_buf == NULL) || (input_size == NULL))
+    if ((hse == NULL) || (in_buf == NULL) || (input_size == NULL)) {
         return HSER_SINK_ERROR_NULL;
+    }
 
     /* Sinking more content after saying the content is done, tsk tsk */
-    if (is_finishing(hse)) return HSER_SINK_ERROR_MISUSE;
+    if (is_finishing(hse)) { return HSER_SINK_ERROR_MISUSE; }
 
     /* Sinking more content before processing is done */
-    if (hse->state != HSES_NOT_FULL) return HSER_SINK_ERROR_MISUSE;
+    if (hse->state != HSES_NOT_FULL) { return HSER_SINK_ERROR_MISUSE; }
 
     uint16_t write_offset = get_input_offset(hse) + hse->input_size;
     uint16_t ibs = get_input_buffer_size(hse);
@@ -191,8 +192,9 @@ static HSE_state st_flush_bit_buffer(heatshrink_encoder *hse,
 
 HSE_poll_res heatshrink_encoder_poll(heatshrink_encoder *hse,
         uint8_t *out_buf, size_t out_buf_size, size_t *output_size) {
-    if ((hse == NULL) || (out_buf == NULL) || (output_size == NULL))
+    if ((hse == NULL) || (out_buf == NULL) || (output_size == NULL)) {
         return HSER_POLL_ERROR_NULL;
+    }
     if (out_buf_size == 0) {
         LOG("-- MISUSE: output buffer size is 0\n");
         return HSER_POLL_ERROR_MISUSE;
@@ -251,10 +253,10 @@ HSE_poll_res heatshrink_encoder_poll(heatshrink_encoder *hse,
 }
 
 HSE_finish_res heatshrink_encoder_finish(heatshrink_encoder *hse) {
-    if (hse == NULL) return HSER_FINISH_ERROR_NULL;
+    if (hse == NULL) { return HSER_FINISH_ERROR_NULL; }
     LOG("-- setting is_finishing flag\n");
     hse->flags |= FLAG_IS_FINISHING;
-    if (hse->state == HSES_NOT_FULL) hse->state = HSES_FILLED;
+    if (hse->state == HSES_NOT_FULL) { hse->state = HSES_FILLED; }
     return hse->state == HSES_DONE ? HSER_FINISH_DONE : HSER_FINISH_MORE;
 }
 
@@ -281,7 +283,7 @@ static HSE_state st_step_search(heatshrink_encoder *hse) {
         start = end - window_length + 1;
     } else if (backlog_is_partial(hse)) { /* clamp to available data */
         start = end - window_length + 1;
-        if (start < lookahead_sz) start = lookahead_sz;
+        if (start < lookahead_sz) { start = lookahead_sz; }
     } else {              /* only scan available input */
         start = input_offset;
     }
@@ -341,7 +343,7 @@ static HSE_state st_yield_literal(heatshrink_encoder *hse,
     if (can_take_byte(oi)) {
         push_literal_byte(hse, oi);
         hse->flags &= ~FLAG_HAS_LITERAL;
-        if (on_final_literal(hse)) return HSES_FLUSH_BITS;
+        if (on_final_literal(hse)) { return HSES_FLUSH_BITS; }
         return hse->match_length > 0 ? HSES_YIELD_TAG_BIT : HSES_SEARCH;
     } else {
         return HSES_YIELD_LITERAL;
@@ -489,7 +491,7 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     uint8_t *buf = hse->buffer;
 
     /* Skip search at self. */
-    if (start == end) return MATCH_NOT_FOUND;
+    if (start == end) { return MATCH_NOT_FOUND; }
 
     uint16_t match_maxlen = 0;
     uint16_t match_index = MATCH_NOT_FOUND;
@@ -501,7 +503,7 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     struct hs_index *hsi = HEATSHRINK_ENCODER_INDEX(hse);
     uint16_t pos = hsi->index[end];
 
-    if (pos < start) return MATCH_NOT_FOUND;
+    if (pos < start) { return MATCH_NOT_FOUND; }
     while (pos != MATCH_NOT_FOUND) {
         uint8_t * const pospoint = &buf[pos];
         for (len=0; len<maxlen; len++) {
@@ -515,11 +517,11 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
             if (len > match_maxlen) {
                 match_maxlen = len;
                 match_index = pos;
-                if (len == maxlen) break; /* don't keep searching */
+                if (len == maxlen) { break; } /* don't keep searching */
             }
         }
         pos = hsi->index[pos];
-        if (pos < start) break;
+        if (pos < start) { break; }
     }
 #else    
     for (uint16_t pos=end - 1; ; pos--) {
@@ -528,17 +530,17 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
                 LOG("  --> cmp buf[%d] == 0x%02x against %02x (start %u)\n",
                 pos + len, buf[pos + len], needlepoint[len], start);
             }
-            if (buf[pos + len] != needlepoint[len]) break;
+            if (buf[pos + len] != needlepoint[len]) { break; }
         }
         if (len > break_even_point) {
             if (len > match_maxlen) {
                 match_maxlen = len;
                 match_index = pos;
-                if (len == maxlen) break; /* don't keep searching */
+                if (len == maxlen) { break; } /* don't keep searching */
             }
         }
         /* start may be 0, so can't use i >= start */
-        if (pos == start) break;
+        if (pos == start) { break; }
     }
 #endif
     
