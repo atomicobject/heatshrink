@@ -440,19 +440,25 @@ static void do_indexing(heatshrink_encoder *hse) {
     uint16_t buf_sz = get_input_buffer_size(hse);
     uint16_t input_sz = 2*buf_sz;
 
+    const uint16_t NONE = 0xFFFF;
     memset(hsi->index, 0xFF, input_sz * sizeof(uint16_t));
     memset(last, 0xFF, sizeof(last));
 
-    uint8_t *data = hse->buffer;
+    uint8_t * const data = hse->buffer;
+    uint16_t * const index = hsi->index;
 
     uint16_t input_offset = get_input_offset(hse);
-    uint16_t end = input_offset + hse->input_size;
+    const uint16_t end = input_offset + hse->input_size;
 
-    /* hsi->index[offset] => previous offset w/ same byte. */
-    for (int i=0; i<end; i++) {
+    bool filled = backlog_is_filled(hse);
+    for (uint16_t i=0; i<end-1; i++) {
         uint8_t v = data[i];
         uint16_t lv = last[v];
-        hsi->index[i] = lv;
+        if (filled) {
+            index[i] = (lv != NONE && data[i + 1] == index[lv + 1] ? lv : NONE);
+        } else {
+            index[i] = lv;
+        }
         last[v] = i;
     }
 #endif
@@ -506,13 +512,16 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     if (pos < start) { return MATCH_NOT_FOUND; }
     while (pos != MATCH_NOT_FOUND) {
         uint8_t * const pospoint = &buf[pos];
-        for (len=0; len<maxlen; len++) {
-            if (0) { LOG("    -- checking char %c at %d against %c at %d\n",
-                pospoint[len], pos + len, needlepoint[len],
-                needle_index + len);
+        len = 0;
+        for (len=1; len<maxlen; len++) {
+            if (0) {
+                LOG("    -- checking char %c at %d against %c at %d\n",
+                    pospoint[len], pos + len, needlepoint[len],
+                    needle_index + len);
             }
-            if (pospoint[len] != needlepoint[len]) break; // HOTSPOT...
+            if (pospoint[len] != needlepoint[len]) { break; }
         }
+
         if (len > break_even_point) {
             if (len > match_maxlen) {
                 match_maxlen = len;
