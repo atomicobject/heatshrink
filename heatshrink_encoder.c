@@ -513,10 +513,8 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
         uint8_t * const pospoint = &buf[pos];
         len = 0;
 
-        if (*pospoint == *needlepoint) {
-            for (len = 1; len < maxlen; len++) {
-                if (pospoint[len] != needlepoint[len]) break;
-            }
+        for (len = 1; len < maxlen; len++) {
+            if (pospoint[len] != needlepoint[len]) break;
         }
 
         if (len > match_maxlen) {
