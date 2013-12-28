@@ -452,7 +452,7 @@ static void do_indexing(heatshrink_encoder *hse) {
     memset(last, 0xFF, sizeof(last));
 
     uint8_t * const data = hse->buffer;
-    uint16_t * const index = hsi->index;
+    int16_t * const index = hsi->index;
 
     const uint16_t input_offset = get_input_offset(hse);
     const uint16_t end = input_offset + hse->input_size;
@@ -525,7 +525,7 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
         pos = hsi->index[pos];
     }
 #else    
-    for (uint16_t pos=end - 1; ; pos--) {
+    for (int16_t pos=end - 1; pos >= start; pos--) {
         for (len=0; len<maxlen; len++) {
             if (0) {
                 LOG("  --> cmp buf[%d] == 0x%02x against %02x (start %u)\n",
@@ -538,8 +538,6 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
             match_index = pos;
             if (len == maxlen) { break; } /* don't keep searching */
         }
-        /* start may be 0, so can't use i >= start */
-        if (pos == start) { break; }
     }
 #endif
     
