@@ -573,9 +573,12 @@ static uint8_t push_outgoing_bits(heatshrink_encoder *hse, output_info *oi) {
         count = hse->outgoing_bits_count;
         bits = hse->outgoing_bits;
     }
-    LOG("-- pushing %d outgoing bits: 0x%02x\n", count, bits);
-    push_bits(hse, count, bits, oi);
-    hse->outgoing_bits_count -= count;
+
+    if (count > 0) {
+        LOG("-- pushing %d outgoing bits: 0x%02x\n", count, bits);
+        push_bits(hse, count, bits, oi);
+        hse->outgoing_bits_count -= count;
+    }
     return count;
 }
 
