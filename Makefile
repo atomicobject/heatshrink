@@ -19,8 +19,6 @@ heatshrink: heatshrink_encoder.o heatshrink_decoder.o
 test_heatshrink_dynamic: heatshrink_encoder.o heatshrink_decoder.o
 test_heatshrink_static: heatshrink_encoder.o heatshrink_decoder.o
 
-heat.a: heatshrink_encoder.o heatshrink_decoder.o
-
 *.o: Makefile heatshrink_config.h
 
 heatshrink_decoder.o: heatshrink_decoder.h
