@@ -535,7 +535,8 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
 #else    
     for (int16_t pos=end - 1; pos >= start; pos--) {
         uint8_t * const pospoint = &buf[pos];
-        if (*pospoint == *needlepoint) {
+        if ((pospoint[match_maxlen] == needlepoint[match_maxlen])
+            && (*pospoint == *needlepoint)) {
             for (len=1; len<maxlen; len++) {
                 if (0) {
                     LOG("  --> cmp buf[%d] == 0x%02x against %02x (start %u)\n",
