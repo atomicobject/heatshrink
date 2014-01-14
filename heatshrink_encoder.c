@@ -534,17 +534,20 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     }
 #else    
     for (int16_t pos=end - 1; pos >= start; pos--) {
-        for (len=0; len<maxlen; len++) {
-            if (0) {
-                LOG("  --> cmp buf[%d] == 0x%02x against %02x (start %u)\n",
-                pos + len, buf[pos + len], needlepoint[len], start);
+        uint8_t * const pospoint = &buf[pos];
+        if (*pospoint == *needlepoint) {
+            for (len=1; len<maxlen; len++) {
+                if (0) {
+                    LOG("  --> cmp buf[%d] == 0x%02x against %02x (start %u)\n",
+                        pos + len, pospoint[len], needlepoint[len], start);
+                }
+                if (pospoint[len] != needlepoint[len]) { break; }
             }
-            if (buf[pos + len] != needlepoint[len]) { break; }
-        }
-        if (len > match_maxlen) {
-            match_maxlen = len;
-            match_index = pos;
-            if (len == maxlen) { break; } /* don't keep searching */
+            if (len > match_maxlen) {
+                match_maxlen = len;
+                match_index = pos;
+                if (len == maxlen) { break; } /* don't keep searching */
+            }
         }
     }
 #endif
