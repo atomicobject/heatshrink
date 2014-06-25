@@ -557,6 +557,44 @@ TEST gen(void) {
     PASS();
 }
 
+TEST decoder_should_not_get_stuck_with_finish_yielding_MORE_but_0_bytes_output_from_poll(void) {
+    uint8_t input[512];
+    memset(input, 0xff, 256);
+
+    uint8_t output[1024];
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 8, 4);
+    ASSERT(hsd);
+
+    /* Confirm that no byte of trailing context can lead to
+     * heatshrink_decoder_finish erroneously returning HSDR_FINISH_MORE
+     * when heatshrink_decoder_poll will yield 0 bytes.
+     *
+     * Before 0.3.1, a final byte of 0xFF could potentially cause
+     * this to happen, if at exactly the byte boundary. */
+    for (uint16_t byte = 0; byte < 256; byte++) {
+        for (int i = 1; i < 512; i++) {
+            input[i] = byte;
+            heatshrink_decoder_reset(hsd);
+            memset(output, 0, sizeof(*output));
+            size_t count = 0;
+            
+            HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, i, &count);
+            ASSERT_EQ(HSDR_SINK_OK, sres);
+            
+            size_t out_sz = 0;
+            HSD_poll_res pres = heatshrink_decoder_poll(hsd, output, sizeof(output), &out_sz);
+            ASSERT_EQ(HSDR_POLL_EMPTY, pres);
+            
+            HSD_finish_res fres = heatshrink_decoder_finish(hsd);
+            ASSERT_EQ(HSDR_FINISH_DONE, fres);
+            input[i] = 0xff;
+        }
+    }
+
+    heatshrink_decoder_free(hsd);
+    PASS();
+}
+
 SUITE(decoding) {
     RUN_TEST(decoder_alloc_should_reject_excessively_small_window);
     RUN_TEST(decoder_alloc_should_reject_zero_byte_input_buffer);
@@ -582,6 +620,9 @@ SUITE(decoding) {
 
     RUN_TEST(decoder_finish_should_reject_null_input);
     RUN_TEST(decoder_finish_should_note_when_done);
+
+    // Regressions
+    RUN_TEST(decoder_should_not_get_stuck_with_finish_yielding_MORE_but_0_bytes_output_from_poll);
 }
 
 typedef struct {
