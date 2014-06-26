@@ -40,7 +40,7 @@ static void usage(void) {
         "systems.\n"
         "\n"
         " -h        print help\n"
-        " -e        encode (compress)\n"
+        " -e        encode (compress, default)\n"
         " -d        decode (uncompress)\n"
         " -v        verbose (print input & output sizes, compression ratio, etc.)\n"
         "\n"
