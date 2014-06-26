@@ -25,11 +25,41 @@ static const int version_major = HEATSHRINK_VERSION_MAJOR;
 static const int version_minor = HEATSHRINK_VERSION_MINOR;
 static const int version_patch = HEATSHRINK_VERSION_PATCH;
 static const char author[] = HEATSHRINK_AUTHOR;
+static const char url[] = HEATSHRINK_URL;
 
 static void usage(void) {
     fprintf(stderr, "heatshrink version %u.%u.%u by %s\n",
         version_major, version_minor, version_patch, author);
-    fprintf(stderr, "usage: heatshrink [-h] [-e|-d] [-v] [-w BITS] [-l BITS] [IN_FILE] [OUT_FILE]\n");
+    fprintf(stderr, "Home page: %s\n\n", url);
+    fprintf(stderr,
+        "Usage:\n"
+        "  heatshrink [-h] [-e|-d] [-v] [-w SIZE] [-l BITS] [IN_FILE] [OUT_FILE]\n"
+        "\n"
+        "heatshrink compresses or uncompresses byte streams using LZSS, and is\n"
+        "designed especially for embedded, low-memory, and/or hard real-time\n"
+        "systems.\n"
+        "\n"
+        " -h        print help\n"
+        " -e        encode (compress)\n"
+        " -d        decode (uncompress)\n"
+        " -v        verbose (print input & output sizes, compression ratio, etc.)\n"
+        "\n"
+        " -w SIZE   Base-2 log of LZSS sliding window size\n"
+        "\n"
+        "    A larger value allows searches a larger history of the data for repeated\n"
+        "    patterns, potentially compressing more effectively, but will use\n"
+        "    more memory and processing time.\n"
+        "    Recommended default: -w 8 (embedded systems), -w 10 (elsewhere)\n"
+        "  \n"
+        " -l BITS   Number of bits used for back-reference lengths\n"
+        "\n"
+        "    A larger value allows longer substitutions, but since all\n"
+        "    back-references must use -w + -l bits, larger -w or -l can be\n"
+        "    counterproductive if most patterns are small and/or local.\n"
+        "    Recommended default: -l 4\n"
+        "\n"
+        " If IN_FILE or OUT_FILE are unspecified, they will default to\n"
+        " \"-\" for standard input and standard output, respectively.\n");
     exit(1);
 }
 
