@@ -21,8 +21,8 @@ test_heatshrink_static: heatshrink_encoder.o heatshrink_decoder.o
 
 *.o: Makefile heatshrink_config.h
 
-heatshrink_decoder.o: heatshrink_decoder.h
-heatshrink_encoder.o: heatshrink_encoder.h
+heatshrink_decoder.o: heatshrink_decoder.h heatshrink_common.h
+heatshrink_encoder.o: heatshrink_encoder.h heatshrink_common.h
 
 tags: TAGS
 
