@@ -14,6 +14,10 @@ SUITE(encoding);
 SUITE(decoding);
 SUITE(integration);
 
+#ifdef HEATSHRINK_HAS_THEFT
+SUITE(properties);
+#endif
+
 static void dump_buf(char *name, uint8_t *buf, uint16_t count) {
     for (int i=0; i<count; i++) {
         uint8_t c = (uint8_t)buf[i];
@@ -988,5 +992,8 @@ int main(int argc, char **argv) {
     RUN_SUITE(encoding);
     RUN_SUITE(decoding);
     RUN_SUITE(integration);
+    #ifdef HEATSHRINK_HAS_THEFT
+    RUN_SUITE(properties);
+    #endif
     GREATEST_MAIN_END();        /* display results */
 }
