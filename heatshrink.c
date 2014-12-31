@@ -455,6 +455,15 @@ int main(int argc, char **argv) {
     cfg.out = handle_open(cfg.out_fname, IO_WRITE, cfg.buffer_size);
     if (cfg.out == NULL) { die("Failed to open output file for write"); }
 
+#if _WIN32
+    /*
+     * On Windows, stdin and stdout default to text mode. Switch them to
+     * binary mode before sending data through them.
+     */
+    _setmode(STDOUT_FILENO, O_BINARY);
+    _setmode(STDIN_FILENO, O_BINARY);
+#endif
+
     if (cfg.cmd == OP_ENC) {
         return encode(&cfg);
     } else if (cfg.cmd == OP_DEC) {
