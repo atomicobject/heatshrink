@@ -154,7 +154,7 @@ static ssize_t handle_read(io_handle *io, size_t size, uint8_t **buf) {
     LOG("@ read %zd\n", size);
     if (buf == NULL) { return -1; }
     if (size > io->size) {
-        printf("size %zd, io->size %zd\n", size, io->size);
+        fprintf(stderr, "size %zd, io->size %zd\n", size, io->size);
         return -1;
     }
     if (io->mode != IO_READ) { return -1; }
@@ -289,7 +289,7 @@ static int encode(config *cfg) {
         uint8_t *input = NULL;
         read_sz = handle_read(in, window_sz, &input);
         if (input == NULL) {
-            printf("handle read failure\n");
+            fprintf(stderr, "handle read failure\n");
             die("read");
         }
         if (read_sz < 0) { die("read"); }
@@ -363,7 +363,7 @@ static int decode(config *cfg) {
         uint8_t *input = NULL;
         read_sz = handle_read(in, window_sz, &input);
         if (input == NULL) {
-            printf("handle read failure\n");
+            fprintf(stderr, "handle read failure\n");
             die("read");
         }
         if (read_sz == 0) {
@@ -446,7 +446,7 @@ int main(int argc, char **argv) {
 
     if (0 == strcmp(cfg.in_fname, cfg.out_fname)
         && (0 != strcmp("-", cfg.in_fname))) {
-        printf("Refusing to overwrite file '%s' with itself.\n", cfg.in_fname);
+        fprintf(stderr, "Refusing to overwrite file '%s' with itself.\n", cfg.in_fname);
         exit(1);
     }
 
