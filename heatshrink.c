@@ -32,6 +32,14 @@ exit(retval); \
 #define HEATSHRINK_ERR(...) err(__VA_ARGS__)
 #endif
 
+/*
+ * We have to open binary files with the O_BINARY flag on Windows. Most other
+ * platforms don't differentiate between binary and non-binary files.
+ */
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 static const int version_major = HEATSHRINK_VERSION_MAJOR;
 static const int version_minor = HEATSHRINK_VERSION_MINOR;
 static const int version_patch = HEATSHRINK_VERSION_PATCH;
@@ -121,13 +129,13 @@ static io_handle *handle_open(char *fname, IO_mode m, size_t buf_sz) {
         if (0 == strcmp("-", fname)) {
             io->fd = STDIN_FILENO;
         } else {
-            io->fd = open(fname, O_RDONLY);
+            io->fd = open(fname, O_RDONLY | O_BINARY);
         }
     } else if (m == IO_WRITE) {
         if (0 == strcmp("-", fname)) {
             io->fd = STDOUT_FILENO;
         } else {
-            io->fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC /*| O_EXCL*/, 0644);
+            io->fd = open(fname, O_WRONLY | O_BINARY | O_CREAT | O_TRUNC /*| O_EXCL*/, 0644);
         }
     }
 
