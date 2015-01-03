@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
-#include <err.h>
 #include <fcntl.h>
 
 #include "heatshrink_encoder.h"
@@ -19,6 +18,26 @@
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define LOG(...) /* NO-OP */
+#endif
+
+#if _WIN32
+#include <errno.h>
+#define HEATSHRINK_ERR(retval, ...) do { \
+fprintf(stderr, __VA_ARGS__); \
+fprintf(stderr, "Undefined error: %d\n", errno); \
+exit(retval); \
+} while(0)
+#else
+#include <err.h>
+#define HEATSHRINK_ERR(...) err(__VA_ARGS__)
+#endif
+
+/*
+ * We have to open binary files with the O_BINARY flag on Windows. Most other
+ * platforms don't differentiate between binary and non-binary files.
+ */
+#ifndef O_BINARY
+#define O_BINARY 0
 #endif
 
 static const int version_major = HEATSHRINK_VERSION_MAJOR;
@@ -110,19 +129,19 @@ static io_handle *handle_open(char *fname, IO_mode m, size_t buf_sz) {
         if (0 == strcmp("-", fname)) {
             io->fd = STDIN_FILENO;
         } else {
-            io->fd = open(fname, O_RDONLY);
+            io->fd = open(fname, O_RDONLY | O_BINARY);
         }
     } else if (m == IO_WRITE) {
         if (0 == strcmp("-", fname)) {
             io->fd = STDOUT_FILENO;
         } else {
-            io->fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC /*| O_EXCL*/, 0644);
+            io->fd = open(fname, O_WRONLY | O_BINARY | O_CREAT | O_TRUNC /*| O_EXCL*/, 0644);
         }
     }
 
     if (io->fd == -1) {         /* failed to open */
         free(io);
-        err(1, "open");
+        HEATSHRINK_ERR(1, "open");
         return NULL;
     }
 
@@ -135,7 +154,7 @@ static ssize_t handle_read(io_handle *io, size_t size, uint8_t **buf) {
     LOG("@ read %zd\n", size);
     if (buf == NULL) { return -1; }
     if (size > io->size) {
-        printf("size %zd, io->size %zd\n", size, io->size);
+        fprintf(stderr, "size %zd, io->size %zd\n", size, io->size);
         return -1;
     }
     if (io->mode != IO_READ) { return -1; }
@@ -154,10 +173,10 @@ static ssize_t handle_read(io_handle *io, size_t size, uint8_t **buf) {
         io->fill -= io->read;
         io->read = 0;
         ssize_t read_sz = read(io->fd, &io->buf[io->fill], io->size - io->fill);
-        if (read_sz < 0) { err(1, "read"); }
+        if (read_sz < 0) { HEATSHRINK_ERR(1, "read"); }
         io->total += read_sz;
         if (read_sz == 0) {     /* EOF */
-            if (close(io->fd) < 0) { err(1, "close"); }
+            if (close(io->fd) < 0) { HEATSHRINK_ERR(1, "close"); }
             io->fd = -1;
         }
         io->fill += read_sz;
@@ -192,7 +211,7 @@ static ssize_t handle_sink(io_handle *io, size_t size, uint8_t *input) {
         ssize_t written = write(io->fd, io->buf, io->fill);
         LOG("@ flushing %zd, wrote %zd\n", io->fill, written);
         io->total += written;
-        if (written == -1) { err(1, "write"); }
+        if (written == -1) { HEATSHRINK_ERR(1, "write"); }
         memmove(io->buf, &io->buf[written], io->fill - written);
         io->fill -= written;
     }
@@ -207,7 +226,7 @@ static void handle_close(io_handle *io) {
             ssize_t written = write(io->fd, io->buf, io->fill);
             io->total += written;
             LOG("@ close: flushing %zd, wrote %zd\n", io->fill, written);
-            if (written == -1) { err(1, "write"); }
+            if (written == -1) { HEATSHRINK_ERR(1, "write"); }
         }
         close(io->fd);
         io->fd = -1;
@@ -270,7 +289,7 @@ static int encode(config *cfg) {
         uint8_t *input = NULL;
         read_sz = handle_read(in, window_sz, &input);
         if (input == NULL) {
-            printf("handle read failure\n");
+            fprintf(stderr, "handle read failure\n");
             die("read");
         }
         if (read_sz < 0) { die("read"); }
@@ -281,7 +300,7 @@ static int encode(config *cfg) {
         if (handle_drop(in, read_sz) < 0) { die("drop"); }
     };
 
-    if (read_sz == -1) { err(1, "read"); }
+    if (read_sz == -1) { HEATSHRINK_ERR(1, "read"); }
 
     heatshrink_encoder_free(hse);
     close_and_report(cfg);
@@ -344,7 +363,7 @@ static int decode(config *cfg) {
         uint8_t *input = NULL;
         read_sz = handle_read(in, window_sz, &input);
         if (input == NULL) {
-            printf("handle read failure\n");
+            fprintf(stderr, "handle read failure\n");
             die("read");
         }
         if (read_sz == 0) {
@@ -358,7 +377,7 @@ static int decode(config *cfg) {
             if (handle_drop(in, read_sz) < 0) { die("drop"); }
         }
     }
-    if (read_sz == -1) { err(1, "read"); }
+    if (read_sz == -1) { HEATSHRINK_ERR(1, "read"); }
         
     heatshrink_decoder_free(hsd);
     close_and_report(cfg);
@@ -427,7 +446,7 @@ int main(int argc, char **argv) {
 
     if (0 == strcmp(cfg.in_fname, cfg.out_fname)
         && (0 != strcmp("-", cfg.in_fname))) {
-        printf("Refusing to overwrite file '%s' with itself.\n", cfg.in_fname);
+        fprintf(stderr, "Refusing to overwrite file '%s' with itself.\n", cfg.in_fname);
         exit(1);
     }
 
@@ -435,6 +454,15 @@ int main(int argc, char **argv) {
     if (cfg.in == NULL) { die("Failed to open input file for read"); }
     cfg.out = handle_open(cfg.out_fname, IO_WRITE, cfg.buffer_size);
     if (cfg.out == NULL) { die("Failed to open output file for write"); }
+
+#if _WIN32
+    /*
+     * On Windows, stdin and stdout default to text mode. Switch them to
+     * binary mode before sending data through them.
+     */
+    _setmode(STDOUT_FILENO, O_BINARY);
+    _setmode(STDIN_FILENO, O_BINARY);
+#endif
 
     if (cfg.cmd == OP_ENC) {
         return encode(&cfg);
