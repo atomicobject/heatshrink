@@ -4,10 +4,10 @@
 #define HEATSHRINK_AUTHOR "Scott Vokes <scott.vokes@atomicobject.com>"
 #define HEATSHRINK_URL "https://github.com/atomicobject/heatshrink"
 
-/* Version 0.3.1 */
+/* Version 0.3.2 */
 #define HEATSHRINK_VERSION_MAJOR 0
 #define HEATSHRINK_VERSION_MINOR 3
-#define HEATSHRINK_VERSION_PATCH 1
+#define HEATSHRINK_VERSION_PATCH 2
 
 #define HEATSHRINK_MIN_WINDOW_BITS 4
 #define HEATSHRINK_MAX_WINDOW_BITS 15
