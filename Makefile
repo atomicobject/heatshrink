@@ -3,7 +3,8 @@ PROJECT = heatshrink
 #OPTIMIZE = -Os
 OPTIMIZE = -O3
 WARN = -Wall -Wextra -pedantic #-Werror
-CFLAGS += -std=c99 -g ${WARN} ${OPTIMIZE}
+CDEFS = -D_POSIX_C_SOURCE=2 -D_C99_SOURCE=1
+CFLAGS += -std=c99 -g ${WARN} ${CDEFS} ${OPTIMIZE}
 CFLAGS += -Wmissing-prototypes
 CFLAGS += -Wstrict-prototypes
 CFLAGS += -Wmissing-declarations
