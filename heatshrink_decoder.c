@@ -25,8 +25,10 @@ static const char *state_names[] = {
     "empty",
     "input_available",
     "yield_literal",
-    "backref_index",
-    "backref_count",
+    "backref_index_msb",
+    "backref_index_lsb",
+    "backref_count_msb",
+    "backref_count_lsb",
     "yield_backref",
     "check_for_more_input",
 };
@@ -281,7 +283,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
         uint16_t neg_offset = hsd->output_index;
         LOG("-- emitting %zu bytes from -%u bytes back\n", count, neg_offset);
         ASSERT(neg_offset < mask + 1);
-        ASSERT(count <= 1 << BACKREF_COUNT_BITS(hsd));
+        ASSERT(count <= (size_t)(1 << BACKREF_COUNT_BITS(hsd)));
 
         for (i=0; i<count; i++) {
             uint8_t c = buf[(hsd->head_index - neg_offset) & mask];
