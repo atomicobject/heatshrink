@@ -274,6 +274,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
         output_info *oi) {
     size_t count = oi->buf_size - *oi->output_size;
     if (count > 0) {
+        size_t i = 0;
         if (hsd->output_count < count) count = hsd->output_count;
         uint8_t *buf = &hsd->buffers[HEATSHRINK_DECODER_INPUT_BUFFER_SIZE(hsd)];
         uint16_t mask = (1 << HEATSHRINK_DECODER_WINDOW_BITS(hsd)) - 1;
@@ -282,7 +283,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
         ASSERT(neg_offset < mask + 1);
         ASSERT(count <= 1 << BACKREF_COUNT_BITS(hsd));
 
-        for (size_t i=0; i<count; i++) {
+        for (i=0; i<count; i++) {
             uint8_t c = buf[(hsd->head_index - neg_offset) & mask];
             push_byte(hsd, oi, c);
             buf[hsd->head_index & mask] = c;
@@ -302,6 +303,7 @@ static HSD_state st_check_for_input(heatshrink_decoder *hsd) {
 /* Get the next COUNT bits from the input buffer, saving incremental progress.
  * Returns NO_BITS on end of input, or if more than 31 bits are requested. */
 static uint32_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
+    int i = 0;
     if (count > 31) { return NO_BITS; }
     LOG("-- popping %u bit(s)\n", count);
 
@@ -311,7 +313,7 @@ static uint32_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
         if (hsd->bit_index < (1 << (count - 1))) { return NO_BITS; }
     }
 
-    for (int i = 0; i < count; i++) {
+    for (i = 0; i < count; i++) {
         if (hsd->bit_index == 0x00) {
             if (hsd->input_size == 0) {
                 LOG("  -- out of bits, suspending w/ accumulator of %u (0x%02x)\n",
