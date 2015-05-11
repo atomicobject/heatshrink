@@ -312,7 +312,7 @@ static HSE_state st_step_search(heatshrink_encoder *hse) {
         LOG("ss Found match of %d bytes at %d\n", match_length, match_pos);
         hse->match_pos = match_pos;
         hse->match_length = match_length;
-        ASSERT(match_pos < 1 << hse->window_sz2 /*window_length*/);
+        ASSERT(match_pos < 1 << HEATSHRINK_ENCODER_WINDOW_BITS(hse) /*window_length*/);
 
         return HSES_YIELD_TAG_BIT;
     }
