@@ -502,7 +502,9 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
 
     uint16_t match_maxlen = 0;
     uint16_t match_index = MATCH_NOT_FOUND;
-    const uint16_t break_even_point = 3;
+    const uint16_t break_even_point =
+        (1 + HEATSHRINK_ENCODER_WINDOW_BITS(hse) +
+         HEATSHRINK_ENCODER_LOOKAHEAD_BITS(hse) + 9) / 9;
     uint16_t len = 0;
     uint8_t * const needlepoint = &buf[end];
 #if HEATSHRINK_USE_INDEX
