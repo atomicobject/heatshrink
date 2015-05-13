@@ -4,12 +4,15 @@ WARN = -Wall -Wextra -pedantic #-Werror
 WARN += -Wmissing-prototypes
 WARN += -Wstrict-prototypes
 WARN += -Wmissing-declarations
-CFLAGS += -std=c99 -g ${WARN} ${OPTIMIZE}
 
 # If libtheft is available, build additional property-based tests.
 # Uncomment these to use it in test_heatshrink_dynamic.
 #CFLAGS += -DHEATSHRINK_HAS_THEFT
-#LDFLAGS += -ltheft
+#THEFT_PATH=	/usr/local/
+#THEFT_INC=	-I${THEFT_PATH}/include/
+#LDFLAGS += -L${THEFT_PATH}/lib -ltheft
+
+CFLAGS += -std=c99 -g ${WARN} ${THEFT_INC} ${OPTIMIZE}
 
 all: heatshrink test_runners libraries
 

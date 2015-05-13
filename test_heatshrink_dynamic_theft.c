@@ -144,6 +144,68 @@ static struct theft_type_info rbuf_info = {
     .print = rbuf_print_cb,
 };
 
+static void *window_alloc_cb(struct theft *t, theft_seed seed, void *env) {
+    uint8_t *window = malloc(sizeof(uint8_t));
+    if (window == NULL) { return THEFT_ERROR; }
+    *window = (seed % (HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_WINDOW_BITS)) + HEATSHRINK_MIN_WINDOW_BITS;
+    (void)t;
+    (void)env;
+    return window;
+}
+
+static void window_free_cb(void *instance, void *env) {
+    free(instance);
+    (void)env;
+}
+
+static theft_hash window_hash_cb(void *instance, void *env) {
+    (void)env;
+    return *(uint8_t *)instance;
+}
+
+static void window_print_cb(FILE *f, void *instance, void *env) {
+    fprintf(f, "%u", (*(uint8_t *)instance));
+    (void)env;
+}
+
+static struct theft_type_info window_info = {
+    .alloc = window_alloc_cb,
+    .free = window_free_cb,
+    .hash = window_hash_cb,
+    .print = window_print_cb,
+};
+
+static void *lookahead_alloc_cb(struct theft *t, theft_seed seed, void *env) {
+    uint8_t *window = malloc(sizeof(uint8_t));
+    if (window == NULL) { return THEFT_ERROR; }
+    *window = (seed % (HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_LOOKAHEAD_BITS)) + HEATSHRINK_MIN_LOOKAHEAD_BITS;
+    (void)t;
+    (void)env;
+    return window;
+}
+
+static void lookahead_free_cb(void *instance, void *env) {
+    free(instance);
+    (void)env;
+}
+
+static theft_hash lookahead_hash_cb(void *instance, void *env) {
+    (void)env;
+    return *(uint8_t *)instance;
+}
+
+static void lookahead_print_cb(FILE *f, void *instance, void *env) {
+    fprintf(f, "%u", (*(uint8_t *)instance));
+    (void)env;
+}
+
+static struct theft_type_info lookahead_info = {
+    .alloc = lookahead_alloc_cb,
+    .free = lookahead_free_cb,
+    .hash = lookahead_hash_cb,
+    .print = lookahead_print_cb,
+};
+
 static theft_progress_callback_res
 progress_cb(struct theft_trial_info *info, void *env) {
     test_env *te = (test_env *)env;
@@ -236,14 +298,21 @@ TEST decoder_fuzzing_should_not_detect_stuck_state(void) {
     PASS();
 }
 
-static theft_trial_res prop_encoded_and_decoded_data_should_match(void *input) {
+static theft_trial_res prop_encoded_and_decoded_data_should_match(void *input, void *window, void *lookahead) {
     uint8_t e_output[64 * 1024];
     uint8_t d_output[64 * 1024];
-    heatshrink_encoder *hse = heatshrink_encoder_alloc(12, 4);
+
+    assert(window);
+    uint8_t window_sz2 = *(uint8_t *)window;
+    assert(lookahead);
+    uint8_t lookahead_sz2 = *(uint8_t *)lookahead;
+    heatshrink_encoder *hse = heatshrink_encoder_alloc(window_sz2, lookahead_sz2);
     if (hse == NULL) { return THEFT_TRIAL_ERROR; }
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(4096, 12, 4);
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(4096, window_sz2, lookahead_sz2);
     if (hsd == NULL) { return THEFT_TRIAL_ERROR; }
     
+    if (lookahead_sz2 > window_sz2) { return THEFT_TRIAL_SKIP; }
+
     rbuf *r = (rbuf *)input;
 
     size_t e_input_size = 0;
@@ -284,7 +353,6 @@ static theft_trial_res prop_encoded_and_decoded_data_should_match(void *input) {
     return THEFT_TRIAL_PASS;
 }
 
-
 TEST encoded_and_decoded_data_should_match(void) {
     test_env env = { .limit = 1 << 11 };
     
@@ -295,7 +363,7 @@ TEST encoded_and_decoded_data_should_match(void) {
     struct theft_cfg cfg = {
         .name = __func__,
         .fun = prop_encoded_and_decoded_data_should_match,
-        .type_info = { &rbuf_info },
+        .type_info = { &rbuf_info, &window_info, &lookahead_info },
         .seed = seed,
         .trials = 1000000,
         .env = &env,

@@ -12,6 +12,7 @@
 
 SUITE(encoding);
 SUITE(decoding);
+SUITE(regression);
 SUITE(integration);
 
 #ifdef HEATSHRINK_HAS_THEFT
@@ -915,6 +916,16 @@ TEST regression_index_fail(void) {
     return compress_and_expand_and_check(input, size, &cfg);
 }
 
+TEST regression_minimally_sized_window_and_lookahead_can_drop_bytes_at_finish(void) {
+    uint8_t input[] = {'a', 'a', 'a', 'a'};
+    cfg_info cfg;
+    cfg.log_lvl = GREATEST_IS_VERBOSE() ? 2 : 0;
+    cfg.window_sz2 = 4;
+    cfg.lookahead_sz2 = 2;
+    cfg.decoder_input_buffer_size = 256;
+    return compress_and_expand_and_check(input, sizeof(input), &cfg);
+}
+
 TEST sixty_four_k(void) {
     /* Regression: An input buffer of 64k should not cause an
      * overflow that leads to an infinite loop. */
@@ -930,18 +941,23 @@ TEST sixty_four_k(void) {
     return compress_and_expand_and_check(input, size, &cfg);
 }
 
-SUITE(integration) {
-    RUN_TEST(data_without_duplication_should_match);
-    RUN_TEST(data_with_simple_repetition_should_compress_and_decompress_properly);
-    RUN_TEST(data_without_duplication_should_match_with_absurdly_tiny_buffers);
-    RUN_TEST(data_with_simple_repetition_should_match_with_absurdly_tiny_buffers);
-
+SUITE(regression) {
     // Regressions from fuzzing
     RUN_TEST(small_input_buffer_should_not_impact_decoder_correctness);
     RUN_TEST(regression_backreference_counters_should_not_roll_over);
     RUN_TEST(regression_index_fail);
     RUN_TEST(sixty_four_k);
 
+    // Other regressions
+    RUN_TEST(regression_minimally_sized_window_and_lookahead_can_drop_bytes_at_finish);
+}
+
+SUITE(integration) {
+    RUN_TEST(data_without_duplication_should_match);
+    RUN_TEST(data_with_simple_repetition_should_compress_and_decompress_properly);
+    RUN_TEST(data_without_duplication_should_match_with_absurdly_tiny_buffers);
+    RUN_TEST(data_with_simple_repetition_should_match_with_absurdly_tiny_buffers);
+    
 #if __STDC_VERSION__ >= 19901L
     printf("\n\nFuzzing (single-byte sizes):\n");
     for (uint8_t lsize=3; lsize < 8; lsize++) {
@@ -991,6 +1007,7 @@ int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
     RUN_SUITE(encoding);
     RUN_SUITE(decoding);
+    RUN_SUITE(regression);
     RUN_SUITE(integration);
     #ifdef HEATSHRINK_HAS_THEFT
     RUN_SUITE(properties);
