@@ -11,13 +11,18 @@
 #include "heatshrink_decoder.h"
 #include "greatest.h"
 #include "theft.h"
-#include "greatest_theft.h"
 
 #if !HEATSHRINK_DYNAMIC_ALLOC
 #error Must set HEATSHRINK_DYNAMIC_ALLOC to 1 for this test suite.
 #endif
 
 SUITE(properties);
+
+// Buffers, 16 MB each
+#define BUF_SIZE (16 * 1024L * 1024)
+/* static uint8_t *input; */
+static uint8_t *output;
+static uint8_t *output2;
 
 typedef struct {
     int limit;
@@ -147,7 +152,8 @@ static struct theft_type_info rbuf_info = {
 static void *window_alloc_cb(struct theft *t, theft_seed seed, void *env) {
     uint8_t *window = malloc(sizeof(uint8_t));
     if (window == NULL) { return THEFT_ERROR; }
-    *window = (seed % (HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_WINDOW_BITS)) + HEATSHRINK_MIN_WINDOW_BITS;
+    *window = (seed % (HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_WINDOW_BITS))
+      + HEATSHRINK_MIN_WINDOW_BITS;
     (void)t;
     (void)env;
     return window;
@@ -178,7 +184,8 @@ static struct theft_type_info window_info = {
 static void *lookahead_alloc_cb(struct theft *t, theft_seed seed, void *env) {
     uint8_t *window = malloc(sizeof(uint8_t));
     if (window == NULL) { return THEFT_ERROR; }
-    *window = (seed % (HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_LOOKAHEAD_BITS)) + HEATSHRINK_MIN_LOOKAHEAD_BITS;
+    *window = (seed % (HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_LOOKAHEAD_BITS))
+      + HEATSHRINK_MIN_LOOKAHEAD_BITS;
     (void)t;
     (void)env;
     return window;
@@ -233,12 +240,16 @@ progress_cb(struct theft_trial_info *info, void *env) {
 
 /* For an arbitrary input buffer, it should never get stuck in a
  * state where the data has been sunk but no data can be polled. */
-static theft_trial_res prop_should_not_get_stuck(void *input) {
-    /* Make a buffer large enough for the output: 4 KB of input with
-     * each 16 bits becoming up to 16 bytes will fit in a 64 KB buffer.
-     * (4 KB of input comes from `env.limit = 1 << 12;` below.) */
-    uint8_t output[64 * 1024];
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc((64 * 1024L) - 1, 12, 4);
+static theft_trial_res
+prop_should_not_get_stuck(void *input, void *window, void *lookahead) {
+    assert(window);
+    uint8_t window_sz2 = *(uint8_t *)window;
+    assert(lookahead);
+    uint8_t lookahead_sz2 = *(uint8_t *)lookahead;
+    if (lookahead_sz2 >= window_sz2) { return THEFT_TRIAL_SKIP; }
+
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc((64 * 1024L) - 1,
+        window_sz2, lookahead_sz2);
     if (hsd == NULL) { return THEFT_TRIAL_ERROR; }
 
     rbuf *r = (rbuf *)input;
@@ -248,7 +259,7 @@ static theft_trial_res prop_should_not_get_stuck(void *input) {
     if (sres != HSDR_SINK_OK) { return THEFT_TRIAL_ERROR; }
     
     size_t out_sz = 0;
-    HSD_poll_res pres = heatshrink_decoder_poll(hsd, output, sizeof(output), &out_sz);
+    HSD_poll_res pres = heatshrink_decoder_poll(hsd, output, BUF_SIZE, &out_sz);
     if (pres != HSDR_POLL_EMPTY) { return THEFT_TRIAL_FAIL; }
     
     HSD_finish_res fres = heatshrink_decoder_finish(hsd);
@@ -281,7 +292,7 @@ TEST decoder_fuzzing_should_not_detect_stuck_state(void) {
     struct theft_cfg cfg = {
         .name = __func__,
         .fun = prop_should_not_get_stuck,
-        .type_info = { &rbuf_info },
+        .type_info = { &rbuf_info, &window_info, &lookahead_info },
         .seed = seed,
         .trials = 100000,
         .progress_cb = progress_cb,
@@ -298,55 +309,113 @@ TEST decoder_fuzzing_should_not_detect_stuck_state(void) {
     PASS();
 }
 
-static theft_trial_res prop_encoded_and_decoded_data_should_match(void *input, void *window, void *lookahead) {
-    uint8_t e_output[64 * 1024];
-    uint8_t d_output[64 * 1024];
+static bool do_compress(heatshrink_encoder *hse,
+        uint8_t *input, size_t input_size,
+        uint8_t *output, size_t output_buf_size, size_t *output_used_size) {
+    size_t sunk = 0;
+    size_t polled = 0;
 
+    while (sunk < input_size) {
+        size_t sunk_size = 0;
+        HSE_sink_res esres = heatshrink_encoder_sink(hse,
+            &input[sunk], input_size - sunk, &sunk_size);
+        if (esres != HSER_SINK_OK) { return false; }
+        sunk += sunk_size;
+
+        HSE_poll_res epres = HSER_POLL_ERROR_NULL;
+        do {
+            size_t poll_size = 0;
+            epres = heatshrink_encoder_poll(hse,
+                &output[polled], output_buf_size - polled, &poll_size);
+            if (epres < 0) { return false; }
+            polled += poll_size;
+        } while (epres == HSER_POLL_MORE);
+    }
+    
+    HSE_finish_res efres = heatshrink_encoder_finish(hse);
+    while (efres == HSER_FINISH_MORE) {
+        size_t poll_size = 0;
+        HSE_poll_res epres = heatshrink_encoder_poll(hse,
+            &output[polled], output_buf_size - polled, &poll_size);
+        if (epres < 0) { return false; }
+        polled += poll_size;
+        efres = heatshrink_encoder_finish(hse);
+    }
+    *output_used_size = polled;
+    return efres == HSER_FINISH_DONE;
+}
+
+static bool do_uncompress(heatshrink_decoder *hsd,
+        uint8_t *input, size_t input_size,
+        uint8_t *output, size_t output_buf_size, size_t *output_used_size) {
+    size_t sunk = 0;
+    size_t polled = 0;
+
+    while (sunk < input_size) {
+        size_t sunk_size = 0;
+        HSD_sink_res dsres = heatshrink_decoder_sink(hsd,
+            &input[sunk], input_size - sunk, &sunk_size);
+        if (dsres != HSDR_SINK_OK) { return false; }
+        sunk += sunk_size;
+
+        HSD_poll_res dpres = HSDR_POLL_ERROR_NULL;
+        do {
+            size_t poll_size = 0;
+            dpres = heatshrink_decoder_poll(hsd,
+                &output[polled], output_buf_size - polled, &poll_size);
+            if (dpres < 0) { return false; }
+            polled += poll_size;
+        } while (dpres == HSDR_POLL_MORE);
+    }
+    
+    HSD_finish_res dfres = heatshrink_decoder_finish(hsd);
+    while (dfres == HSDR_FINISH_MORE) {
+        size_t poll_size = 0;
+        HSD_poll_res dpres = heatshrink_decoder_poll(hsd,
+            &output[polled], output_buf_size - polled, &poll_size);
+        if (dpres < 0) { return false; }
+        polled += poll_size;
+        dfres = heatshrink_decoder_finish(hsd);
+    }
+
+    *output_used_size = polled;
+    return dfres == HSDR_FINISH_DONE;
+}
+
+static theft_trial_res
+prop_encoded_and_decoded_data_should_match(void *input, void *window, void *lookahead) {
     assert(window);
     uint8_t window_sz2 = *(uint8_t *)window;
     assert(lookahead);
     uint8_t lookahead_sz2 = *(uint8_t *)lookahead;
+    if (lookahead_sz2 >= window_sz2) { return THEFT_TRIAL_SKIP; }
+
     heatshrink_encoder *hse = heatshrink_encoder_alloc(window_sz2, lookahead_sz2);
     if (hse == NULL) { return THEFT_TRIAL_ERROR; }
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(4096, window_sz2, lookahead_sz2);
     if (hsd == NULL) { return THEFT_TRIAL_ERROR; }
     
-    if (lookahead_sz2 > window_sz2) { return THEFT_TRIAL_SKIP; }
-
     rbuf *r = (rbuf *)input;
 
-    size_t e_input_size = 0;
-    HSE_sink_res esres = heatshrink_encoder_sink(hse,
-        r->buf, r->size, &e_input_size);
-    if (esres != HSER_SINK_OK) { return THEFT_TRIAL_ERROR; }
-    if (e_input_size != r->size) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
-
-    HSE_finish_res efres = heatshrink_encoder_finish(hse);
-    if (efres != HSER_FINISH_MORE) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
-
-    size_t e_output_size = 0;
-    HSE_poll_res epres = heatshrink_encoder_poll(hse,
-        e_output, sizeof(e_output), &e_output_size);
-    if (epres != HSER_POLL_EMPTY) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
-
-    size_t count = 0;
-    HSD_sink_res sres = heatshrink_decoder_sink(hsd, e_output, e_output_size, &count);
-    if (sres != HSDR_SINK_OK) { return THEFT_TRIAL_ERROR; }
-
-    size_t d_output_size = 0;
-    HSD_poll_res pres = heatshrink_decoder_poll(hsd, d_output,
-        sizeof(d_output), &d_output_size);
-    if (pres != HSDR_POLL_EMPTY) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
-    if (d_output_size != r->size) {
-        printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL;
+    size_t compressed_size = 0;
+    if (!do_compress(hse, r->buf, r->size, output,
+            BUF_SIZE, &compressed_size)) {
+        return THEFT_TRIAL_ERROR;
     }
 
-    if (0 != memcmp(d_output, r->buf, d_output_size)) {
+    size_t uncompressed_size = 0;
+    if (!do_uncompress(hsd, output, compressed_size, output2,
+            BUF_SIZE, &uncompressed_size)) {
+        return THEFT_TRIAL_ERROR;
+    }
+
+    // verify uncompressed output matches original input
+    if (r->size != uncompressed_size) {
         return THEFT_TRIAL_FAIL;
     }
-    
-    HSD_finish_res fres = heatshrink_decoder_finish(hsd);
-    if (fres != HSDR_FINISH_DONE) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
+    if (0 != memcmp(output2, r->buf, uncompressed_size)) {
+        return THEFT_TRIAL_FAIL;
+    }
     
     heatshrink_encoder_free(hse);
     heatshrink_decoder_free(hsd);
@@ -382,30 +451,49 @@ static size_t ceil_nine_eighths(size_t sz) {
 }
 
 static theft_trial_res
-prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(void *input) {
-    uint8_t output[32 * 1024];
-    heatshrink_encoder *hse = heatshrink_encoder_alloc(12, 4);
+prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(void *input,
+        void *window, void *lookahead) {
+    assert(window);
+    uint8_t window_sz2 = *(uint8_t *)window;
+    assert(lookahead);
+    uint8_t lookahead_sz2 = *(uint8_t *)lookahead;
+    if (lookahead_sz2 >= window_sz2) { return THEFT_TRIAL_SKIP; }
+
+    heatshrink_encoder *hse = heatshrink_encoder_alloc(window_sz2, lookahead_sz2);
     if (hse == NULL) { return THEFT_TRIAL_ERROR; }
     
     rbuf *r = (rbuf *)input;
 
+    size_t compressed_size = 0;
+    if (!do_compress(hse, r->buf, r->size, output,
+            BUF_SIZE, &compressed_size)) {
+        return THEFT_TRIAL_ERROR;
+    }
+
+#if 0
     size_t input_size = 0;
     HSE_sink_res esres = heatshrink_encoder_sink(hse,
         r->buf, r->size, &input_size);
     if (esres != HSER_SINK_OK) { return THEFT_TRIAL_ERROR; }
     /* Assumes data fits in one sink, failure here means buffer must be larger. */
-    if (input_size != r->size) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
+    if (input_size != r->size) {
+        printf("input size %zd, r->size %zd\n", input_size, r->size);
+        printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL;
+    }
 
     HSE_finish_res efres = heatshrink_encoder_finish(hse);
     if (efres != HSER_FINISH_MORE) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
 
     size_t output_size = 0;
     HSE_poll_res epres = heatshrink_encoder_poll(hse,
-        output, sizeof(output), &output_size);
+        output, BUF_SIZE, &output_size);
     if (epres != HSER_POLL_EMPTY) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
+#endif
 
     size_t ceil_9_8s = ceil_nine_eighths(r->size);
-    if (output_size > ceil_9_8s) {
+    if (compressed_size > ceil_9_8s) {
+        printf("got %zd, orig %zd, ceil_9_8s is %zd\n",
+            compressed_size, r->size, ceil_9_8s);
         return THEFT_TRIAL_FAIL;
     }
 
@@ -423,7 +511,7 @@ TEST encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(void
     struct theft_cfg cfg = {
         .name = __func__,
         .fun = prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst,
-        .type_info = { &rbuf_info },
+        .type_info = { &rbuf_info, &window_info, &lookahead_info },
         .seed = seed,
         .trials = 10000,
         .env = &env,
@@ -438,9 +526,14 @@ TEST encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(void
 }
 
 static theft_trial_res
-prop_encoder_should_always_make_progress(void *instance) {
-    uint8_t output[64 * 1024];
-    heatshrink_encoder *hse = heatshrink_encoder_alloc(8, 4);
+prop_encoder_should_always_make_progress(void *instance, void *window, void *lookahead) {
+    assert(window);
+    uint8_t window_sz2 = *(uint8_t *)window;
+    assert(lookahead);
+    uint8_t lookahead_sz2 = *(uint8_t *)lookahead;
+    if (lookahead_sz2 >= window_sz2) { return THEFT_TRIAL_SKIP; }
+
+    heatshrink_encoder *hse = heatshrink_encoder_alloc(window_sz2, lookahead_sz2);
     if (hse == NULL) { return THEFT_TRIAL_ERROR; }
     
     rbuf *r = (rbuf *)instance;
@@ -467,7 +560,7 @@ prop_encoder_should_always_make_progress(void *instance) {
 
         size_t output_size = 0;
         HSE_poll_res epres = heatshrink_encoder_poll(hse,
-            output, sizeof(output), &output_size);
+            output, BUF_SIZE, &output_size);
         if (epres < 0) { return THEFT_TRIAL_ERROR; }
         if (output_size == 0 && sunk == r->size) {
             no_progress++;
@@ -493,7 +586,7 @@ TEST encoder_should_always_make_progress(void) {
     struct theft_cfg cfg = {
         .name = __func__,
         .fun = prop_encoder_should_always_make_progress,
-        .type_info = { &rbuf_info },
+        .type_info = { &rbuf_info, &window_info, &lookahead_info },
         .seed = seed,
         .trials = 10000,
         .env = &env,
@@ -508,10 +601,18 @@ TEST encoder_should_always_make_progress(void) {
 }
 
 static theft_trial_res
-prop_decoder_should_always_make_progress(void *instance) {
-    uint8_t output[64 * 1024];
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(512, 8, 4);
-    if (hsd == NULL) { return THEFT_TRIAL_ERROR; }
+prop_decoder_should_always_make_progress(void *instance, void *window, void *lookahead) {
+    assert(window);
+    uint8_t window_sz2 = *(uint8_t *)window;
+    assert(lookahead);
+    uint8_t lookahead_sz2 = *(uint8_t *)lookahead;
+    if (lookahead_sz2 >= window_sz2) { return THEFT_TRIAL_SKIP; }
+
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(512, window_sz2, lookahead_sz2);
+    if (hsd == NULL) {
+        fprintf(stderr, "Failed to alloc decoder\n");
+        return THEFT_TRIAL_ERROR;
+    }
     
     rbuf *r = (rbuf *)instance;
 
@@ -523,7 +624,10 @@ prop_decoder_should_always_make_progress(void *instance) {
             size_t input_size = 0;
             HSD_sink_res sres = heatshrink_decoder_sink(hsd,
                 &r->buf[sunk], r->size - sunk, &input_size);
-            if (sres != HSER_SINK_OK) { return THEFT_TRIAL_ERROR; }
+            if (sres < 0) {
+                fprintf(stderr, "Sink error %d\n", sres);
+                return THEFT_TRIAL_ERROR;
+            }
             sunk += input_size;
         } else {
             HSD_finish_res fres = heatshrink_decoder_finish(hsd);
@@ -538,7 +642,10 @@ prop_decoder_should_always_make_progress(void *instance) {
         size_t output_size = 0;
         HSD_poll_res pres = heatshrink_decoder_poll(hsd,
             output, sizeof(output), &output_size);
-        if (pres < 0) { return THEFT_TRIAL_ERROR; }
+        if (pres < 0) {
+            fprintf(stderr, "poll error: %d\n", pres);
+            return THEFT_TRIAL_ERROR;
+        }
         if (output_size == 0 && sunk == r->size) {
             no_progress++;
             if (no_progress > 2) {
@@ -563,7 +670,7 @@ TEST decoder_should_always_make_progress(void) {
     struct theft_cfg cfg = {
         .name = __func__,
         .fun = prop_decoder_should_always_make_progress,
-        .type_info = { &rbuf_info },
+        .type_info = { &rbuf_info, &window_info, &lookahead_info },
         .seed = seed,
         .trials = 10000,
         .env = &env,
@@ -577,12 +684,28 @@ TEST decoder_should_always_make_progress(void) {
     PASS();
 }
 
+static void setup_cb(void *udata) {
+    (void)udata;
+    memset(output, 0, BUF_SIZE);
+    memset(output2, 0, BUF_SIZE);
+}
+
 SUITE(properties) {
+    output = malloc(BUF_SIZE);
+    assert(output);
+    output2 = malloc(BUF_SIZE);
+    assert(output2);
+    
+    GREATEST_SET_SETUP_CB(setup_cb, NULL);
+
     RUN_TEST(decoder_fuzzing_should_not_detect_stuck_state);
     RUN_TEST(encoded_and_decoded_data_should_match);
     RUN_TEST(encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst);
     RUN_TEST(encoder_should_always_make_progress);
     RUN_TEST(decoder_should_always_make_progress);
+
+    free(output);
+    free(output2);
 }
 #else
 struct because_iso_c_requires_at_least_one_declaration;

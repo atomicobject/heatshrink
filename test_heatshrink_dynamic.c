@@ -640,8 +640,10 @@ typedef struct {
 static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cfg_info *cfg) {
     heatshrink_encoder *hse = heatshrink_encoder_alloc(cfg->window_sz2,
         cfg->lookahead_sz2);
+    ASSERT(hse);
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(cfg->decoder_input_buffer_size,
         cfg->window_sz2, cfg->lookahead_sz2);
+    ASSERT(hsd);
     size_t comp_sz = input_size + (input_size/2) + 4;
     size_t decomp_sz = input_size + (input_size/2) + 4;
     uint8_t *comp = malloc(comp_sz);
@@ -661,7 +663,8 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cf
     size_t sunk = 0;
     size_t polled = 0;
     while (sunk < input_size) {
-        ASSERT(heatshrink_encoder_sink(hse, &input[sunk], input_size - sunk, &count) >= 0);
+        HSE_sink_res esres = heatshrink_encoder_sink(hse, &input[sunk], input_size - sunk, &count);
+        ASSERT(esres >= 0);
         sunk += count;
         if (cfg->log_lvl > 1) printf("^^ sunk %zd\n", count);
         if (sunk == input_size) {
@@ -916,16 +919,6 @@ TEST regression_index_fail(void) {
     return compress_and_expand_and_check(input, size, &cfg);
 }
 
-TEST regression_minimally_sized_window_and_lookahead_can_drop_bytes_at_finish(void) {
-    uint8_t input[] = {'a', 'a', 'a', 'a'};
-    cfg_info cfg;
-    cfg.log_lvl = GREATEST_IS_VERBOSE() ? 2 : 0;
-    cfg.window_sz2 = 4;
-    cfg.lookahead_sz2 = 2;
-    cfg.decoder_input_buffer_size = 256;
-    return compress_and_expand_and_check(input, sizeof(input), &cfg);
-}
-
 TEST sixty_four_k(void) {
     /* Regression: An input buffer of 64k should not cause an
      * overflow that leads to an infinite loop. */
@@ -947,9 +940,6 @@ SUITE(regression) {
     RUN_TEST(regression_backreference_counters_should_not_roll_over);
     RUN_TEST(regression_index_fail);
     RUN_TEST(sixty_four_k);
-
-    // Other regressions
-    RUN_TEST(regression_minimally_sized_window_and_lookahead_can_drop_bytes_at_finish);
 }
 
 SUITE(integration) {
