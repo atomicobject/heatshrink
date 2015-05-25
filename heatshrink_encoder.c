@@ -439,6 +439,10 @@ static void do_indexing(heatshrink_encoder *hse) {
      * to indicate end-of-list. This significantly speeds up matching,
      * while only using sizeof(uint16_t)*sizeof(buffer) bytes of RAM.
      *
+     * To make index comparisons easier in case of empty backlog at
+     * window size 15, the end-of-list value is -1 for full backlog
+     * and 0 otherwise.
+     *
      * Future optimization options:
      * 1. Since any negative value represents end-of-list, the other
      *    15 bits could be used to improve the index dynamically.
@@ -449,7 +453,7 @@ static void do_indexing(heatshrink_encoder *hse) {
      * */
     struct hs_index *hsi = HEATSHRINK_ENCODER_INDEX(hse);
     uint16_t last[256];
-    memset(last, 0xFF, sizeof(last));
+    memset(last, backlog_is_filled(hse) ? 0xFF : 0x00, sizeof(last));
 
     uint8_t * const data = hse->buffer;
     int16_t * const index = hsi->index;
@@ -509,7 +513,7 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     struct hs_index *hsi = HEATSHRINK_ENCODER_INDEX(hse);
     int16_t pos = hsi->index[end];
 
-    while (pos >= start) {
+    while (pos - (int16_t)start >= 0) {
         uint8_t * const pospoint = &buf[pos];
         len = 0;
 
@@ -533,7 +537,7 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
         pos = hsi->index[pos];
     }
 #else    
-    for (int16_t pos=end - 1; pos >= (int16_t)start; pos--) {
+    for (int16_t pos=end - 1; pos - (int16_t)start >= 0; pos--) {
         uint8_t * const pospoint = &buf[pos];
         if ((pospoint[match_maxlen] == needlepoint[match_maxlen])
             && (*pospoint == *needlepoint)) {
