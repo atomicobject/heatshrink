@@ -273,7 +273,7 @@ static HSE_state st_step_search(heatshrink_encoder *hse) {
         msi, hse->input_size + msi, 2*window_length, hse->input_size);
 
     bool fin = is_finishing(hse);
-    if (msi >= hse->input_size - (fin ? 0 : lookahead_sz)) {
+    if (msi > hse->input_size - (fin ? 1 : lookahead_sz)) {
         /* Current search buffer is exhausted, copy it into the
          * backlog and await more input. */
         LOG("-- end of search @ %d, saving backlog\n", msi);
