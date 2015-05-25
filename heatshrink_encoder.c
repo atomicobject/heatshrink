@@ -488,7 +488,7 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     struct hs_index *hsi = HEATSHRINK_ENCODER_INDEX(hse);
     int16_t pos = hsi->index[end];
 
-    while (pos >= start) {
+    while (pos - (int16_t)start >= 0) {
         uint8_t * const pospoint = &buf[pos];
         len = 0;
 
@@ -512,7 +512,7 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
         pos = hsi->index[pos];
     }
 #else    
-    for (int16_t pos=end - 1; pos >= (int16_t)start; pos--) {
+    for (int16_t pos=end - 1; pos - (int16_t)start >= 0; pos--) {
         uint8_t * const pospoint = &buf[pos];
         if ((pospoint[match_maxlen] == needlepoint[match_maxlen])
             && (*pospoint == *needlepoint)) {
