@@ -26,13 +26,10 @@ digraph {
 
         yield_tag_bit->yield_tag_bit [label="poll(), full buf", color="red"]
         yield_tag_bit->yield_literal [label="poll(), literal", color="red"]
-        yield_tag_bit->yield_br_index [label="poll(), no literal", color="red"]
-        yield_tag_bit->flush_bits [label="finishing, no literal"]
+        yield_tag_bit->yield_br_index [label="poll(), match", color="red"]
 
         yield_literal->yield_literal [label="poll(), full buf", color="red"]
-        yield_literal->search [label="poll(), no match", color="red"]
-        yield_literal->yield_tag_bit [label="poll(), match", color="red"]
-        yield_literal->flush_bits [label="poll(), final literal", color="red"]
+        yield_literal->search [label="done"]
 
         yield_br_index->yield_br_index [label="poll(), full buf", color="red"]
         yield_br_index->yield_br_length [label="poll()", color="red"]
@@ -40,8 +37,7 @@ digraph {
         yield_br_length->yield_br_length [label="poll(), full buf", color="red"]
         yield_br_length->search [label="done"]
 
-        save_backlog->flush_bits [label="finishing, no literal"]
-        save_backlog->yield_tag_bit [label="finishing, literal"]
+        save_backlog->flush_bits [label="finishing"]
         save_backlog->not_full [label="expect more input"]
 
         flush_bits->flush_bits [label="poll(), full buf", color="red"]
