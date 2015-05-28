@@ -271,8 +271,8 @@ static HSE_state st_step_search(heatshrink_encoder *hse) {
     if (msi > hse->input_size - (fin ? 1 : lookahead_sz)) {
         /* Current search buffer is exhausted, copy it into the
          * backlog and await more input. */
-        LOG("-- end of search @ %d, saving backlog\n", msi);
-        return HSES_SAVE_BACKLOG;
+        LOG("-- end of search @ %d\n", msi);
+        return fin ? HSES_FLUSH_BITS : HSES_SAVE_BACKLOG;
     }
 
     uint16_t input_offset = get_input_offset(hse);
@@ -363,13 +363,9 @@ static HSE_state st_yield_br_length(heatshrink_encoder *hse,
 }
 
 static HSE_state st_save_backlog(heatshrink_encoder *hse) {
-    if (is_finishing(hse)) {
-        return HSES_FLUSH_BITS;
-    } else {
-        LOG("-- saving backlog\n");
-        save_backlog(hse);
-        return HSES_NOT_FULL;
-    }
+    LOG("-- saving backlog\n");
+    save_backlog(hse);
+    return HSES_NOT_FULL;
 }
 
 static HSE_state st_flush_bit_buffer(heatshrink_encoder *hse,
