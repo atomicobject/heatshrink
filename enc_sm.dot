@@ -20,7 +20,6 @@ digraph {
 
         filled->search [label="indexing (if any)"]
 
-        search->search [label="step"]
         search->yield_tag_bit [label="literal"]
         search->yield_tag_bit [label="match found"]
         search->save_backlog [label="input exhausted"]
