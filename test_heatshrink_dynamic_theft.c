@@ -513,30 +513,8 @@ prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(void
         return THEFT_TRIAL_ERROR;
     }
 
-#if 0
-    size_t input_size = 0;
-    HSE_sink_res esres = heatshrink_encoder_sink(hse,
-        r->buf, r->size, &input_size);
-    if (esres != HSER_SINK_OK) { return THEFT_TRIAL_ERROR; }
-    /* Assumes data fits in one sink, failure here means buffer must be larger. */
-    if (input_size != r->size) {
-        printf("input size %zd, r->size %zd\n", input_size, r->size);
-        printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL;
-    }
-
-    HSE_finish_res efres = heatshrink_encoder_finish(hse);
-    if (efres != HSER_FINISH_MORE) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
-
-    size_t output_size = 0;
-    HSE_poll_res epres = heatshrink_encoder_poll(hse,
-        output, BUF_SIZE, &output_size);
-    if (epres != HSER_POLL_EMPTY) { printf("FAIL %d\n", __LINE__); return THEFT_TRIAL_FAIL; }
-#endif
-
     size_t ceil_9_8s = ceil_nine_eighths(r->size);
     if (compressed_size > ceil_9_8s) {
-        printf("got %zd, orig %zd, ceil_9_8s is %zd\n",
-            compressed_size, r->size, ceil_9_8s);
         return THEFT_TRIAL_FAIL;
     }
 
