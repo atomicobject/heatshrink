@@ -28,6 +28,7 @@ typedef struct {
     int limit;
     int fails;
     int dots;
+    uint16_t decoder_buffer_size;
 } test_env;
 
 typedef struct {
@@ -213,6 +214,44 @@ static struct theft_type_info lookahead_info = {
     .print = lookahead_print_cb,
 };
 
+
+static void *decoder_buf_alloc_cb(struct theft *t, theft_seed seed, void *env) {
+    uint16_t *size = malloc(sizeof(uint16_t));
+    if (size == NULL) { return THEFT_ERROR; }
+
+    /* Get a random uint16_t, and only keep bottom 0-15 bits at random,
+     * to bias towards smaller buffers. */
+    *size = seed & 0xFFFF;
+    *size &= (1 << (theft_random(t) & 0xF)) - 1;
+
+    if (*size == 0) { *size = 1; }   // round up to 1
+    (void)t;
+    (void)env;
+    return size;
+}
+
+static void decoder_buf_free_cb(void *instance, void *env) {
+    free(instance);
+    (void)env;
+}
+
+static theft_hash decoder_buf_hash_cb(void *instance, void *env) {
+    (void)env;
+    return *(uint16_t *)instance;
+}
+
+static void decoder_buf_print_cb(FILE *f, void *instance, void *env) {
+    fprintf(f, "%u", (*(uint16_t *)instance));
+    (void)env;
+}
+
+static struct theft_type_info decoder_buf_info = {
+    .alloc = decoder_buf_alloc_cb,
+    .free = decoder_buf_free_cb,
+    .hash = decoder_buf_hash_cb,
+    .print = decoder_buf_print_cb,
+};
+
 static theft_progress_callback_res
 progress_cb(struct theft_trial_info *info, void *env) {
     test_env *te = (test_env *)env;
@@ -383,7 +422,8 @@ static bool do_uncompress(heatshrink_decoder *hsd,
 }
 
 static theft_trial_res
-prop_encoded_and_decoded_data_should_match(void *input, void *window, void *lookahead) {
+prop_encoded_and_decoded_data_should_match(void *input,
+        void *window, void *lookahead, void *decoder_buffer_size) {
     assert(window);
     uint8_t window_sz2 = *(uint8_t *)window;
     assert(lookahead);
@@ -392,7 +432,10 @@ prop_encoded_and_decoded_data_should_match(void *input, void *window, void *look
 
     heatshrink_encoder *hse = heatshrink_encoder_alloc(window_sz2, lookahead_sz2);
     if (hse == NULL) { return THEFT_TRIAL_ERROR; }
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(4096, window_sz2, lookahead_sz2);
+
+    assert(decoder_buffer_size);
+    uint16_t buf_size = *(uint16_t *)decoder_buffer_size;
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(buf_size, window_sz2, lookahead_sz2);
     if (hsd == NULL) { return THEFT_TRIAL_ERROR; }
     
     rbuf *r = (rbuf *)input;
@@ -432,7 +475,7 @@ TEST encoded_and_decoded_data_should_match(void) {
     struct theft_cfg cfg = {
         .name = __func__,
         .fun = prop_encoded_and_decoded_data_should_match,
-        .type_info = { &rbuf_info, &window_info, &lookahead_info },
+        .type_info = { &rbuf_info, &window_info, &lookahead_info, &decoder_buf_info, },
         .seed = seed,
         .trials = 1000000,
         .env = &env,
