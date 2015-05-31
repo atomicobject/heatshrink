@@ -93,7 +93,6 @@ void heatshrink_decoder_reset(heatshrink_decoder *hsd) {
     hsd->output_count = 0;
     hsd->output_index = 0;
     hsd->head_index = 0;
-    hsd->bit_accumulator = 0x00000000;
 }
 
 /* Copy SIZE bytes into the decoder's input buffer, if it will fit. */
@@ -305,6 +304,7 @@ static HSD_state st_check_for_input(heatshrink_decoder *hsd) {
 /* Get the next COUNT bits from the input buffer, saving incremental progress.
  * Returns NO_BITS on end of input, or if more than 15 bits are requested. */
 static uint16_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
+    uint16_t accumulator = 0;
     int i = 0;
     if (count > 15) { return NO_BITS; }
     LOG("-- popping %u bit(s)\n", count);
@@ -319,7 +319,7 @@ static uint16_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
         if (hsd->bit_index == 0x00) {
             if (hsd->input_size == 0) {
                 LOG("  -- out of bits, suspending w/ accumulator of %u (0x%02x)\n",
-                    hsd->bit_accumulator, hsd->bit_accumulator);
+                    accumulator, accumulator);
                 return NO_BITS;
             }
             hsd->current_byte = hsd->buffers[hsd->input_index++];
@@ -330,27 +330,24 @@ static uint16_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
             }
             hsd->bit_index = 0x80;
         }
-        hsd->bit_accumulator <<= 1;
+        accumulator <<= 1;
         if (hsd->current_byte & hsd->bit_index) {
-            hsd->bit_accumulator |= 0x01;
+            accumulator |= 0x01;
             if (0) {
                 LOG("  -- got 1, accumulator 0x%04x, bit_index 0x%02x\n",
-                hsd->bit_accumulator, hsd->bit_index);
+                accumulator, hsd->bit_index);
             }
         } else {
             if (0) {
                 LOG("  -- got 0, accumulator 0x%04x, bit_index 0x%02x\n",
-                hsd->bit_accumulator, hsd->bit_index);
+                accumulator, hsd->bit_index);
             }
         }
         hsd->bit_index >>= 1;
     }
 
-    uint16_t res = 0;
-    res = hsd->bit_accumulator;
-    hsd->bit_accumulator = 0x00000000;
-    if (count > 1) { LOG("  -- accumulated %08x\n", res); }
-    return res;
+    if (count > 1) { LOG("  -- accumulated %08x\n", accumulator); }
+    return accumulator;
 }
 
 HSD_finish_res heatshrink_decoder_finish(heatshrink_decoder *hsd) {
