@@ -76,7 +76,7 @@ heatshrink_encoder *heatshrink_encoder_alloc(uint8_t window_sz2,
     if ((window_sz2 < HEATSHRINK_MIN_WINDOW_BITS) ||
         (window_sz2 > HEATSHRINK_MAX_WINDOW_BITS) ||
         (lookahead_sz2 < HEATSHRINK_MIN_LOOKAHEAD_BITS) ||
-        (lookahead_sz2 > window_sz2)) {
+        (lookahead_sz2 >= window_sz2)) {
         return NULL;
     }
     
