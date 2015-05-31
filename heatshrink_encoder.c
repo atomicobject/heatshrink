@@ -44,8 +44,6 @@ enum {
     FLAG_IS_FINISHING = 0x01,
     FLAG_HAS_LITERAL = 0x02,
     FLAG_ON_FINAL_LITERAL = 0x04,
-    FLAG_BACKLOG_IS_PARTIAL = 0x08,
-    FLAG_BACKLOG_IS_FILLED = 0x10,
 };
 
 typedef struct {
@@ -62,8 +60,6 @@ static uint16_t get_lookahead_size(heatshrink_encoder *hse);
 static void add_tag_bit(heatshrink_encoder *hse, output_info *oi, uint8_t tag);
 static int can_take_byte(output_info *oi);
 static int is_finishing(heatshrink_encoder *hse);
-static int backlog_is_partial(heatshrink_encoder *hse);
-static int backlog_is_filled(heatshrink_encoder *hse);
 static int on_final_literal(heatshrink_encoder *hse);
 static void save_backlog(heatshrink_encoder *hse);
 static int has_literal(heatshrink_encoder *hse);
@@ -282,16 +278,7 @@ static HSE_state st_step_search(heatshrink_encoder *hse) {
 
     uint16_t input_offset = get_input_offset(hse);
     uint16_t end = input_offset + msi;
-
-    uint16_t start = 0;
-    if (backlog_is_filled(hse)) { /* last WINDOW_LENGTH bytes */
-        start = end - window_length + 1;
-    } else if (backlog_is_partial(hse)) { /* clamp to available data */
-        start = end - window_length + 1;
-        if (start < lookahead_sz) { start = lookahead_sz; }
-    } else {              /* only scan available input */
-        start = input_offset;
-    }
+    uint16_t start = end - window_length;
 
     uint16_t max_possible = lookahead_sz;
     if (hse->input_size - msi < lookahead_sz) {
@@ -472,14 +459,6 @@ static int is_finishing(heatshrink_encoder *hse) {
     return hse->flags & FLAG_IS_FINISHING;
 }
 
-static int backlog_is_partial(heatshrink_encoder *hse) {
-    return hse->flags & FLAG_BACKLOG_IS_PARTIAL;
-}
-
-static int backlog_is_filled(heatshrink_encoder *hse) {
-    return hse->flags & FLAG_BACKLOG_IS_FILLED;
-}
-
 static int on_final_literal(heatshrink_encoder *hse) {
     return hse->flags & FLAG_ON_FINAL_LITERAL;
 }
@@ -637,14 +616,6 @@ static void save_backlog(heatshrink_encoder *hse) {
         &hse->buffer[input_buf_sz - rem],
         shift_sz);
         
-    if (backlog_is_partial(hse)) {
-        /* The whole backlog is filled in now, so include it in scans. */
-        hse->flags |= FLAG_BACKLOG_IS_FILLED;
-    } else {
-        /* Include backlog, except for the first lookahead_sz bytes, which
-         * are still undefined. */
-        hse->flags |= FLAG_BACKLOG_IS_PARTIAL;
-    }
     hse->match_scan_index = 0;
     hse->input_size -= input_buf_sz - rem;
 }
