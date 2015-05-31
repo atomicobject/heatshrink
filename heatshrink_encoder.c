@@ -481,9 +481,7 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
 
     uint16_t match_maxlen = 0;
     uint16_t match_index = MATCH_NOT_FOUND;
-    const uint16_t break_even_point =
-        (1 + HEATSHRINK_ENCODER_WINDOW_BITS(hse) +
-         HEATSHRINK_ENCODER_LOOKAHEAD_BITS(hse) + 9) / 9;
+
     uint16_t len = 0;
     uint8_t * const needlepoint = &buf[end];
 #if HEATSHRINK_USE_INDEX
@@ -534,7 +532,15 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     }
 #endif
     
-    if (match_maxlen >= break_even_point) {
+    const size_t break_even_point =
+      (1 + HEATSHRINK_ENCODER_WINDOW_BITS(hse) +
+          HEATSHRINK_ENCODER_LOOKAHEAD_BITS(hse));
+
+    /* Instead of comparing break_even_point against 8*match_maxlen,
+     * compare match_maxlen against break_even_point/8 to avoid
+     * overflow. Since MIN_WINDOW_BITS and MIN_LOOKAHEAD_BITS are 4 and
+     * 3, respectively, break_even_point/8 will always be at least 1. */
+    if (match_maxlen > (break_even_point / 8)) {
         LOG("-- best match: %u bytes at -%u\n",
             match_maxlen, end - match_index);
         *match_length = match_maxlen;
