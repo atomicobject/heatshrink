@@ -42,8 +42,6 @@ static const char *state_names[] = {
 // Encoder flags
 enum {
     FLAG_IS_FINISHING = 0x01,
-    FLAG_HAS_LITERAL = 0x02,
-    FLAG_ON_FINAL_LITERAL = 0x04,
 };
 
 typedef struct {
@@ -60,7 +58,6 @@ static uint16_t get_lookahead_size(heatshrink_encoder *hse);
 static void add_tag_bit(heatshrink_encoder *hse, output_info *oi, uint8_t tag);
 static int can_take_byte(output_info *oi);
 static int is_finishing(heatshrink_encoder *hse);
-static int on_final_literal(heatshrink_encoder *hse);
 static void save_backlog(heatshrink_encoder *hse);
 
 /* Push COUNT (max 8) bits to the output buffer, which has room. */
@@ -443,14 +440,6 @@ static void do_indexing(heatshrink_encoder *hse) {
 
 static int is_finishing(heatshrink_encoder *hse) {
     return hse->flags & FLAG_IS_FINISHING;
-}
-
-static int on_final_literal(heatshrink_encoder *hse) {
-    return hse->flags & FLAG_ON_FINAL_LITERAL;
-}
-
-static int has_literal(heatshrink_encoder *hse) {
-    return (hse->flags & FLAG_HAS_LITERAL);
 }
 
 static int can_take_byte(output_info *oi) {
