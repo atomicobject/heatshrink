@@ -51,12 +51,12 @@ DL=	curl -o ${CORPUS_ARCHIVE}
 #DL=	wget -O ${CORPUS_ARCHIVE}
 
 bench: heatshrink corpus
+	mkdir -p ${BENCHMARK_OUT}
 	time ./benchmark
 
 corpus: ${CORPUS_ARCHIVE}
 
 ${CORPUS_ARCHIVE}:
-	mkdir -p ${BENCHMARK_OUT}
 	${DL} ${CORPUS_URL}
 	cd ${BENCHMARK_OUT} && tar vzxf ../${CORPUS_ARCHIVE}
 
