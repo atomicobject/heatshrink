@@ -27,6 +27,8 @@ ci: test
 clean:
 	rm -f heatshrink test_heatshrink_{dynamic,static} \
 		*.o *.os *.od *.core *.a {dec,enc}_sm.png TAGS
+	rm -f ${BENCHMARK_OUT}/*
+	rmdir ${BENCHMARK_OUT}
 
 TAGS:
 	etags *.[ch]
@@ -38,6 +40,25 @@ dec_sm.png: dec_sm.dot
 
 enc_sm.png: enc_sm.dot
 	dot -o $@ -Tpng $<
+
+# Benchmarking
+CORPUS_ARCHIVE=	cantrbry.tar.gz
+CORPUS_URL=	http://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
+BENCHMARK_OUT=	benchmark_out
+
+## Uncomment one of these.
+DL=	curl -o ${CORPUS_ARCHIVE}
+#DL=	wget -O ${CORPUS_ARCHIVE}
+
+bench: heatshrink corpus
+	time ./benchmark
+
+corpus: ${CORPUS_ARCHIVE}
+
+${CORPUS_ARCHIVE}:
+	mkdir -p ${BENCHMARK_OUT}
+	${DL} ${CORPUS_URL}
+	cd ${BENCHMARK_OUT} && tar vzxf ../${CORPUS_ARCHIVE}
 
 # Installation
 PREFIX ?=	/usr/local

@@ -5,3 +5,4 @@ test_heatshrink_static
 *.core
 *.dSYM
 *.exe
+benchmark_out/
