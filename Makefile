@@ -4,12 +4,15 @@ WARN = -Wall -Wextra -pedantic #-Werror
 WARN += -Wmissing-prototypes
 WARN += -Wstrict-prototypes
 WARN += -Wmissing-declarations
-CFLAGS += -std=c99 -g ${WARN} ${OPTIMIZE}
 
 # If libtheft is available, build additional property-based tests.
 # Uncomment these to use it in test_heatshrink_dynamic.
 #CFLAGS += -DHEATSHRINK_HAS_THEFT
-#LDFLAGS += -ltheft
+#THEFT_PATH=	/usr/local/
+#THEFT_INC=	-I${THEFT_PATH}/include/
+#LDFLAGS += -L${THEFT_PATH}/lib -ltheft
+
+CFLAGS += -std=c99 -g ${WARN} ${THEFT_INC} ${OPTIMIZE}
 
 all: heatshrink test_runners libraries
 
@@ -24,6 +27,8 @@ ci: test
 clean:
 	rm -f heatshrink test_heatshrink_{dynamic,static} \
 		*.o *.os *.od *.core *.a {dec,enc}_sm.png TAGS
+	rm -f ${BENCHMARK_OUT}/*
+	rmdir ${BENCHMARK_OUT}
 
 TAGS:
 	etags *.[ch]
@@ -35,6 +40,25 @@ dec_sm.png: dec_sm.dot
 
 enc_sm.png: enc_sm.dot
 	dot -o $@ -Tpng $<
+
+# Benchmarking
+CORPUS_ARCHIVE=	cantrbry.tar.gz
+CORPUS_URL=	http://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
+BENCHMARK_OUT=	benchmark_out
+
+## Uncomment one of these.
+DL=	curl -o ${CORPUS_ARCHIVE}
+#DL=	wget -O ${CORPUS_ARCHIVE}
+
+bench: heatshrink corpus
+	mkdir -p ${BENCHMARK_OUT}
+	time ./benchmark
+
+corpus: ${CORPUS_ARCHIVE}
+
+${CORPUS_ARCHIVE}:
+	${DL} ${CORPUS_URL}
+	cd ${BENCHMARK_OUT} && tar vzxf ../${CORPUS_ARCHIVE}
 
 # Installation
 PREFIX ?=	/usr/local

@@ -12,6 +12,7 @@
 
 SUITE(encoding);
 SUITE(decoding);
+SUITE(regression);
 SUITE(integration);
 
 #ifdef HEATSHRINK_HAS_THEFT
@@ -257,7 +258,19 @@ TEST decoder_alloc_should_reject_excessively_small_window(void) {
 
 TEST decoder_alloc_should_reject_zero_byte_input_buffer(void) {
     ASSERT_EQ(NULL, heatshrink_decoder_alloc(0,
-            HEATSHRINK_MIN_WINDOW_BITS, 4));
+            HEATSHRINK_MIN_WINDOW_BITS, HEATSHRINK_MIN_WINDOW_BITS - 1));
+    PASS();
+}
+
+TEST decoder_alloc_should_reject_lookahead_equal_to_window_size(void) {
+    ASSERT_EQ(NULL, heatshrink_decoder_alloc(0,
+            HEATSHRINK_MIN_WINDOW_BITS, HEATSHRINK_MIN_WINDOW_BITS));
+    PASS();
+}
+
+TEST decoder_alloc_should_reject_lookahead_greater_than_window_size(void) {
+    ASSERT_EQ(NULL, heatshrink_decoder_alloc(0,
+            HEATSHRINK_MIN_WINDOW_BITS, HEATSHRINK_MIN_WINDOW_BITS + 1));
     PASS();
 }
 
@@ -289,7 +302,7 @@ TEST decoder_sink_should_reject_null_count_pointer(void) {
 TEST decoder_sink_should_reject_excessively_large_input(void) {
     uint8_t input[] = {0,1,2,3,4,5};
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(1,
-        HEATSHRINK_MIN_WINDOW_BITS, 4);
+        HEATSHRINK_MIN_WINDOW_BITS, HEATSHRINK_MIN_WINDOW_BITS - 1);
     size_t count = 0;
     // Sink as much as will fit
     HSD_sink_res res = heatshrink_decoder_sink(hsd, input, 6, &count);
@@ -307,7 +320,7 @@ TEST decoder_sink_should_reject_excessively_large_input(void) {
 TEST decoder_sink_should_sink_data_when_preconditions_hold(void) {
     uint8_t input[] = {0,1,2,3,4,5};
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256,
-        HEATSHRINK_MIN_WINDOW_BITS, 4);
+        HEATSHRINK_MIN_WINDOW_BITS, HEATSHRINK_MIN_WINDOW_BITS - 1);
     size_t count = 0;
     HSD_sink_res res = heatshrink_decoder_sink(hsd, input, 6, &count);
     ASSERT_EQ(HSDR_SINK_OK, res);
@@ -321,7 +334,7 @@ TEST decoder_poll_should_return_empty_if_empty(void) {
     uint8_t output[256];
     size_t out_sz = 0;
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256,
-        HEATSHRINK_MIN_WINDOW_BITS, 4);
+        HEATSHRINK_MIN_WINDOW_BITS, HEATSHRINK_MIN_WINDOW_BITS - 1);
     HSD_poll_res res = heatshrink_decoder_poll(hsd, output, 256, &out_sz);
     ASSERT_EQ(HSDR_POLL_EMPTY, res);
     heatshrink_decoder_free(hsd);
@@ -339,7 +352,7 @@ TEST decoder_poll_should_reject_null_hsd(void) {
 TEST decoder_poll_should_reject_null_output_buffer(void) {
     size_t out_sz = 0;
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(256,
-        HEATSHRINK_MIN_WINDOW_BITS, 4);
+        HEATSHRINK_MIN_WINDOW_BITS, HEATSHRINK_MIN_WINDOW_BITS - 1);
     HSD_poll_res res = heatshrink_decoder_poll(hsd, NULL, 256, &out_sz);
     ASSERT_EQ(HSDR_POLL_ERROR_NULL, res);
     heatshrink_decoder_free(hsd);
@@ -378,9 +391,9 @@ TEST decoder_poll_should_expand_short_literal(void) {
 }
 
 TEST decoder_poll_should_expand_short_literal_and_backref(void) {
-    uint8_t input[] = {0xb3, 0x5b, 0xed, 0xe0, 0x40, 0x80}; //"foofoo"
+    uint8_t input[] = {0xb3, 0x5b, 0xed, 0xe0, 0x41, 0x00}; //"foofoo"
     uint8_t output[6];
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 7);
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 6);
     memset(output, 0, sizeof(*output));
     size_t count = 0;
     
@@ -391,7 +404,7 @@ TEST decoder_poll_should_expand_short_literal_and_backref(void) {
     (void)heatshrink_decoder_poll(hsd, output, 6, &out_sz);
 
     if (0) dump_buf("output", output, out_sz);
-    ASSERT_EQ(6, out_sz);
+    ASSERT_EQ_FMT(6, out_sz, "%d");
     ASSERT_EQ('f', output[0]);
     ASSERT_EQ('o', output[1]);
     ASSERT_EQ('o', output[2]);
@@ -428,7 +441,7 @@ TEST decoder_poll_should_expand_short_self_overlapping_backref(void) {
 TEST decoder_poll_should_suspend_if_out_of_space_in_output_buffer_during_literal_expansion(void) {
     uint8_t input[] = {0xb3, 0x5b, 0xed, 0xe0, 0x40, 0x80};
     uint8_t output[1];
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 7);
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 6);
     size_t count = 0;
     
     HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, sizeof(input), &count);
@@ -447,7 +460,7 @@ TEST decoder_poll_should_suspend_if_out_of_space_in_output_buffer_during_literal
 TEST decoder_poll_should_suspend_if_out_of_space_in_output_buffer_during_backref_expansion(void) {
     uint8_t input[] = {0xb3, 0x5b, 0xed, 0xe0, 0x40, 0x80}; //"foofoo"
     uint8_t output[4];
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 7);
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 6);
     memset(output, 0, sizeof(*output));
     size_t count = 0;
     
@@ -468,9 +481,9 @@ TEST decoder_poll_should_suspend_if_out_of_space_in_output_buffer_during_backref
 }
 
 TEST decoder_poll_should_expand_short_literal_and_backref_when_fed_input_byte_by_byte(void) {
-    uint8_t input[] = {0xb3, 0x5b, 0xed, 0xe0, 0x40, 0x80}; //"foofoo"
+    uint8_t input[] = {0xb3, 0x5b, 0xed, 0xe0, 0x41, 0x00}; //"foofoo"
     uint8_t output[7];
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 7);
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 6);
     memset(output, 0, sizeof(*output));
     size_t count = 0;
     
@@ -497,7 +510,7 @@ TEST decoder_poll_should_expand_short_literal_and_backref_when_fed_input_byte_by
 }
 
 TEST decoder_finish_should_reject_null_input(void) {
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 7);
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 6);
 
     HSD_finish_res exp = HSDR_FINISH_ERROR_NULL;
     ASSERT_EQ(exp, heatshrink_decoder_finish(NULL));
@@ -507,10 +520,10 @@ TEST decoder_finish_should_reject_null_input(void) {
 }
 
 TEST decoder_finish_should_note_when_done(void) {
-    uint8_t input[] = {0xb3, 0x5b, 0xed, 0xe0, 0x40, 0x80}; //"foofoo"
+    uint8_t input[] = {0xb3, 0x5b, 0xed, 0xe0, 0x41, 0x00}; //"foofoo"
 
     uint8_t output[7];
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 7);
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc(256, 7, 6);
     memset(output, 0, sizeof(*output));
     size_t count = 0;
     
@@ -602,6 +615,8 @@ TEST decoder_should_not_get_stuck_with_finish_yielding_MORE_but_0_bytes_output_f
 SUITE(decoding) {
     RUN_TEST(decoder_alloc_should_reject_excessively_small_window);
     RUN_TEST(decoder_alloc_should_reject_zero_byte_input_buffer);
+    RUN_TEST(decoder_alloc_should_reject_lookahead_equal_to_window_size);
+    RUN_TEST(decoder_alloc_should_reject_lookahead_greater_than_window_size);
 
     RUN_TEST(decoder_sink_should_reject_null_hsd_pointer);
     RUN_TEST(decoder_sink_should_reject_null_input_pointer);
@@ -639,8 +654,10 @@ typedef struct {
 static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cfg_info *cfg) {
     heatshrink_encoder *hse = heatshrink_encoder_alloc(cfg->window_sz2,
         cfg->lookahead_sz2);
+    ASSERT(hse);
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(cfg->decoder_input_buffer_size,
         cfg->window_sz2, cfg->lookahead_sz2);
+    ASSERT(hsd);
     size_t comp_sz = input_size + (input_size/2) + 4;
     size_t decomp_sz = input_size + (input_size/2) + 4;
     uint8_t *comp = malloc(comp_sz);
@@ -660,7 +677,8 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cf
     size_t sunk = 0;
     size_t polled = 0;
     while (sunk < input_size) {
-        ASSERT(heatshrink_encoder_sink(hse, &input[sunk], input_size - sunk, &count) >= 0);
+        HSE_sink_res esres = heatshrink_encoder_sink(hse, &input[sunk], input_size - sunk, &count);
+        ASSERT(esres >= 0);
         sunk += count;
         if (cfg->log_lvl > 1) printf("^^ sunk %zd\n", count);
         if (sunk == input_size) {
@@ -930,18 +948,20 @@ TEST sixty_four_k(void) {
     return compress_and_expand_and_check(input, size, &cfg);
 }
 
-SUITE(integration) {
-    RUN_TEST(data_without_duplication_should_match);
-    RUN_TEST(data_with_simple_repetition_should_compress_and_decompress_properly);
-    RUN_TEST(data_without_duplication_should_match_with_absurdly_tiny_buffers);
-    RUN_TEST(data_with_simple_repetition_should_match_with_absurdly_tiny_buffers);
-
+SUITE(regression) {
     // Regressions from fuzzing
     RUN_TEST(small_input_buffer_should_not_impact_decoder_correctness);
     RUN_TEST(regression_backreference_counters_should_not_roll_over);
     RUN_TEST(regression_index_fail);
     RUN_TEST(sixty_four_k);
+}
 
+SUITE(integration) {
+    RUN_TEST(data_without_duplication_should_match);
+    RUN_TEST(data_with_simple_repetition_should_compress_and_decompress_properly);
+    RUN_TEST(data_without_duplication_should_match_with_absurdly_tiny_buffers);
+    RUN_TEST(data_with_simple_repetition_should_match_with_absurdly_tiny_buffers);
+    
 #if __STDC_VERSION__ >= 19901L
     printf("\n\nFuzzing (single-byte sizes):\n");
     for (uint8_t lsize=3; lsize < 8; lsize++) {
@@ -991,6 +1011,7 @@ int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();      /* command-line arguments, initialization. */
     RUN_SUITE(encoding);
     RUN_SUITE(decoding);
+    RUN_SUITE(regression);
     RUN_SUITE(integration);
     #ifdef HEATSHRINK_HAS_THEFT
     RUN_SUITE(properties);

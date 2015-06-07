@@ -47,7 +47,6 @@ typedef struct {
     uint16_t output_count;      /* how many bytes to output */
     uint16_t output_index;      /* index for bytes to output */
     uint16_t head_index;        /* head of window buffer */
-    uint16_t bit_accumulator;
     uint8_t state;              /* current state machine node */
     uint8_t current_byte;       /* current byte of input */
     uint8_t bit_index;          /* current bit index */

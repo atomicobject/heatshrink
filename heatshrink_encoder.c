@@ -42,10 +42,6 @@ static const char *state_names[] = {
 // Encoder flags
 enum {
     FLAG_IS_FINISHING = 0x01,
-    FLAG_HAS_LITERAL = 0x02,
-    FLAG_ON_FINAL_LITERAL = 0x04,
-    FLAG_BACKLOG_IS_PARTIAL = 0x08,
-    FLAG_BACKLOG_IS_FILLED = 0x10,
 };
 
 typedef struct {
@@ -62,11 +58,7 @@ static uint16_t get_lookahead_size(heatshrink_encoder *hse);
 static void add_tag_bit(heatshrink_encoder *hse, output_info *oi, uint8_t tag);
 static int can_take_byte(output_info *oi);
 static int is_finishing(heatshrink_encoder *hse);
-static int backlog_is_partial(heatshrink_encoder *hse);
-static int backlog_is_filled(heatshrink_encoder *hse);
-static int on_final_literal(heatshrink_encoder *hse);
 static void save_backlog(heatshrink_encoder *hse);
-static int has_literal(heatshrink_encoder *hse);
 
 /* Push COUNT (max 8) bits to the output buffer, which has room. */
 static void push_bits(heatshrink_encoder *hse, uint8_t count, uint8_t bits,
@@ -80,7 +72,7 @@ heatshrink_encoder *heatshrink_encoder_alloc(uint8_t window_sz2,
     if ((window_sz2 < HEATSHRINK_MIN_WINDOW_BITS) ||
         (window_sz2 > HEATSHRINK_MAX_WINDOW_BITS) ||
         (lookahead_sz2 < HEATSHRINK_MIN_LOOKAHEAD_BITS) ||
-        (lookahead_sz2 > window_sz2)) {
+        (lookahead_sz2 >= window_sz2)) {
         return NULL;
     }
     
@@ -273,25 +265,16 @@ static HSE_state st_step_search(heatshrink_encoder *hse) {
         msi, hse->input_size + msi, 2*window_length, hse->input_size);
 
     bool fin = is_finishing(hse);
-    if (msi >= hse->input_size - (fin ? 0 : lookahead_sz)) {
+    if (msi > hse->input_size - (fin ? 1 : lookahead_sz)) {
         /* Current search buffer is exhausted, copy it into the
          * backlog and await more input. */
-        LOG("-- end of search @ %d, saving backlog\n", msi);
-        return HSES_SAVE_BACKLOG;
+        LOG("-- end of search @ %d\n", msi);
+        return fin ? HSES_FLUSH_BITS : HSES_SAVE_BACKLOG;
     }
 
     uint16_t input_offset = get_input_offset(hse);
     uint16_t end = input_offset + msi;
-
-    uint16_t start = 0;
-    if (backlog_is_filled(hse)) { /* last WINDOW_LENGTH bytes */
-        start = end - window_length + 1;
-    } else if (backlog_is_partial(hse)) { /* clamp to available data */
-        start = end - window_length + 1;
-        if (start < lookahead_sz) { start = lookahead_sz; }
-    } else {              /* only scan available input */
-        start = input_offset;
-    }
+    uint16_t start = end - window_length;
 
     uint16_t max_possible = lookahead_sz;
     if (hse->input_size - msi < lookahead_sz) {
@@ -305,7 +288,6 @@ static HSE_state st_step_search(heatshrink_encoder *hse) {
     if (match_pos == MATCH_NOT_FOUND) {
         LOG("ss Match not found\n");
         hse->match_scan_index++;
-        hse->flags |= FLAG_HAS_LITERAL;
         hse->match_length = 0;
         return HSES_YIELD_TAG_BIT;
     } else {
@@ -339,9 +321,7 @@ static HSE_state st_yield_literal(heatshrink_encoder *hse,
         output_info *oi) {
     if (can_take_byte(oi)) {
         push_literal_byte(hse, oi);
-        hse->flags &= ~FLAG_HAS_LITERAL;
-        if (on_final_literal(hse)) { return HSES_FLUSH_BITS; }
-        return hse->match_length > 0 ? HSES_YIELD_TAG_BIT : HSES_SEARCH;
+        return HSES_SEARCH;
     } else {
         return HSES_YIELD_LITERAL;
     }
@@ -380,19 +360,9 @@ static HSE_state st_yield_br_length(heatshrink_encoder *hse,
 }
 
 static HSE_state st_save_backlog(heatshrink_encoder *hse) {
-    if (is_finishing(hse)) {
-        /* copy remaining literal (if necessary) */
-        if (has_literal(hse)) {
-            hse->flags |= FLAG_ON_FINAL_LITERAL;
-            return HSES_YIELD_TAG_BIT;
-        } else {
-            return HSES_FLUSH_BITS;
-        }
-    } else {
-        LOG("-- saving backlog\n");
-        save_backlog(hse);
-        return HSES_NOT_FULL;
-    }
+    LOG("-- saving backlog\n");
+    save_backlog(hse);
+    return HSES_NOT_FULL;
 }
 
 static HSE_state st_flush_bit_buffer(heatshrink_encoder *hse,
@@ -448,7 +418,7 @@ static void do_indexing(heatshrink_encoder *hse) {
      *    dynamically improve the index.
      * */
     struct hs_index *hsi = HEATSHRINK_ENCODER_INDEX(hse);
-    uint16_t last[256];
+    int16_t last[256];
     memset(last, 0xFF, sizeof(last));
 
     uint8_t * const data = hse->buffer;
@@ -459,7 +429,7 @@ static void do_indexing(heatshrink_encoder *hse) {
 
     for (uint16_t i=0; i<end; i++) {
         uint8_t v = data[i];
-        uint16_t lv = last[v];
+        int16_t lv = last[v];
         index[i] = lv;
         last[v] = i;
     }
@@ -470,22 +440,6 @@ static void do_indexing(heatshrink_encoder *hse) {
 
 static int is_finishing(heatshrink_encoder *hse) {
     return hse->flags & FLAG_IS_FINISHING;
-}
-
-static int backlog_is_partial(heatshrink_encoder *hse) {
-    return hse->flags & FLAG_BACKLOG_IS_PARTIAL;
-}
-
-static int backlog_is_filled(heatshrink_encoder *hse) {
-    return hse->flags & FLAG_BACKLOG_IS_FILLED;
-}
-
-static int on_final_literal(heatshrink_encoder *hse) {
-    return hse->flags & FLAG_ON_FINAL_LITERAL;
-}
-
-static int has_literal(heatshrink_encoder *hse) {
-    return (hse->flags & FLAG_HAS_LITERAL);
 }
 
 static int can_take_byte(output_info *oi) {
@@ -502,14 +456,14 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
 
     uint16_t match_maxlen = 0;
     uint16_t match_index = MATCH_NOT_FOUND;
-    const uint16_t break_even_point = 3;
+
     uint16_t len = 0;
     uint8_t * const needlepoint = &buf[end];
 #if HEATSHRINK_USE_INDEX
     struct hs_index *hsi = HEATSHRINK_ENCODER_INDEX(hse);
     int16_t pos = hsi->index[end];
 
-    while (pos >= start) {
+    while (pos - (int16_t)start >= 0) {
         uint8_t * const pospoint = &buf[pos];
         len = 0;
 
@@ -533,7 +487,7 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
         pos = hsi->index[pos];
     }
 #else    
-    for (int16_t pos=end - 1; pos >= (int16_t)start; pos--) {
+    for (int16_t pos=end - 1; pos - (int16_t)start >= 0; pos--) {
         uint8_t * const pospoint = &buf[pos];
         if ((pospoint[match_maxlen] == needlepoint[match_maxlen])
             && (*pospoint == *needlepoint)) {
@@ -553,7 +507,15 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
     }
 #endif
     
-    if (match_maxlen >= break_even_point) {
+    const size_t break_even_point =
+      (1 + HEATSHRINK_ENCODER_WINDOW_BITS(hse) +
+          HEATSHRINK_ENCODER_LOOKAHEAD_BITS(hse));
+
+    /* Instead of comparing break_even_point against 8*match_maxlen,
+     * compare match_maxlen against break_even_point/8 to avoid
+     * overflow. Since MIN_WINDOW_BITS and MIN_LOOKAHEAD_BITS are 4 and
+     * 3, respectively, break_even_point/8 will always be at least 1. */
+    if (match_maxlen > (break_even_point / 8)) {
         LOG("-- best match: %u bytes at -%u\n",
             match_maxlen, end - match_index);
         *match_length = match_maxlen;
@@ -637,14 +599,6 @@ static void save_backlog(heatshrink_encoder *hse) {
         &hse->buffer[input_buf_sz - rem],
         shift_sz);
         
-    if (backlog_is_partial(hse)) {
-        /* The whole backlog is filled in now, so include it in scans. */
-        hse->flags |= FLAG_BACKLOG_IS_FILLED;
-    } else {
-        /* Include backlog, except for the first lookahead_sz bytes, which
-         * are still undefined. */
-        hse->flags |= FLAG_BACKLOG_IS_PARTIAL;
-    }
     hse->match_scan_index = 0;
     hse->input_size -= input_buf_sz - rem;
 }
