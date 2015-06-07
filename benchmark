@@ -34,7 +34,8 @@ for W in 6 7 8 9 10 11 12; do
                 ${HS} -e -v -w ${W} -l ${L} ${IN_FILE} ${COMPRESSED_FILE} >> benchmark.output
                 ${HS} -d -v -w ${W} -l ${L} ${COMPRESSED_FILE} ${UNCOMPRESSED_FILE} > /dev/null
 
-                if [ $(stat -f "%z" ${IN_FILE}) != $(stat -f "%z" ${UNCOMPRESSED_FILE}) ];
+                # compare file sizes
+                if [ $(ls -l ${IN_FILE} | awk '{print($5)}') != $(ls -l ${UNCOMPRESSED_FILE} | awk '{print($5)}') ];
                 then
                     printf "\n\n\nWARNING: size of %s does not match size of %s\n\n\n" \
 			${IN_FILE} ${UNCOMPRESSED_FILE}
