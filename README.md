@@ -34,7 +34,7 @@ compression in small amounts of memory. It can use an optional, small
 [index] to make compression significantly faster, but otherwise can run
 in under 100 bytes of memory. The index currently adds 2^(window size+1)
 bytes to memory usage for compression, and temporarily allocates 512
-bytes on the stack during index construction.
+bytes on the stack during index construction (if the index is enabled).
 
 For more information, see the [blog post] for an overview, and the
 `heatshrink_encoder.h` / `heatshrink_decoder.h` header files for API
