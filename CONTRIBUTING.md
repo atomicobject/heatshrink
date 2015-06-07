@@ -5,10 +5,14 @@ Thanks for taking time to contribute to heatshrink!
 Some issues may be tagged with `beginner` in the issue tracker, those
 should be particularly approachable.
 
-Please send pull requests against the `develop` branch. Changes need to
-be carefully checked for reverese compatibility before merging to
-`master`, since heatshrink is running on devices that may not be easily
-recalled and updated.
+Please send patches or pull requests against the `develop` branch.
+Changes need to be carefully checked for reverese compatibility before
+merging to `master`, since heatshrink is running on devices that may not
+be easily recalled and updated.
+
+Sending changes via patch or pull request acknowledges that you are
+willing and able to contribute it under this project's license. (Please
+don't contribute code you aren't legally able to share.)
 
 
 ## Documentation
