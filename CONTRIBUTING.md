@@ -54,7 +54,7 @@ can't decode correctly will need to wait until the next major release.
 heatshrink uses the [Lempel-Ziv-Storer-Szymanski][LZSS] algorithm for
 compression, with a few important implementation details:
 
-1. The compression and uncompression state machines have been designed
+1. The compression and decompression state machines have been designed
    to run incrementally - processing can work a few bytes at a time,
    suspending and resuming as additional data / buffer space becomes
    available.

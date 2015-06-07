@@ -384,7 +384,7 @@ static bool do_compress(heatshrink_encoder *hse,
     return efres == HSER_FINISH_DONE;
 }
 
-static bool do_uncompress(heatshrink_decoder *hsd,
+static bool do_decompress(heatshrink_decoder *hsd,
         uint8_t *input, size_t input_size,
         uint8_t *output, size_t output_buf_size, size_t *output_used_size) {
     size_t sunk = 0;
@@ -446,17 +446,17 @@ prop_encoded_and_decoded_data_should_match(void *input,
         return THEFT_TRIAL_ERROR;
     }
 
-    size_t uncompressed_size = 0;
-    if (!do_uncompress(hsd, output, compressed_size, output2,
-            BUF_SIZE, &uncompressed_size)) {
+    size_t decompressed_size = 0;
+    if (!do_decompress(hsd, output, compressed_size, output2,
+            BUF_SIZE, &decompressed_size)) {
         return THEFT_TRIAL_ERROR;
     }
 
-    // verify uncompressed output matches original input
-    if (r->size != uncompressed_size) {
+    // verify decompressed output matches original input
+    if (r->size != decompressed_size) {
         return THEFT_TRIAL_FAIL;
     }
-    if (0 != memcmp(output2, r->buf, uncompressed_size)) {
+    if (0 != memcmp(output2, r->buf, decompressed_size)) {
         return THEFT_TRIAL_FAIL;
     }
     
