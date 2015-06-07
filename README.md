@@ -5,15 +5,15 @@ A data compression/decompression library for embedded/real-time systems.
 
 ## Key Features:
 
-- **Low memory usage (as low as 50 bytes)**      
+- **Low memory usage (as low as 50 bytes)**
     It is useful for some cases with less than 50 bytes, and useful
     for many general cases with < 300 bytes.
-- **Incremental, bounded CPU use**  
+- **Incremental, bounded CPU use**
     You can chew on input data in arbitrarily tiny bites.
     This is a useful property in hard real-time environments.
-- **Can use either static or dynamic memory allocation**      
+- **Can use either static or dynamic memory allocation**
     The library doesn't impose any constraints on memory management.
-- **ISC license**      
+- **ISC license**
     You can use it freely, even for commercial purposes.
 
 
