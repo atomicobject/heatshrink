@@ -35,7 +35,7 @@ probably want to statically allocate the encoder/decoder. Set
 
 1. Allocate a `heatshrink_encoder` or `heatshrink_decoder` state machine
 using their `alloc` function, or statically allocate one and call their
-`_reset` function to initialize them. (See below for configuration
+`reset` function to initialize them. (See below for configuration
 options.)
 
 2. Use `sink` to sink an input buffer into the state machine. The
