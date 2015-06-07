@@ -6,7 +6,7 @@ Some issues may be tagged with `beginner` in the issue tracker, those
 should be particularly approachable.
 
 Please send patches or pull requests against the `develop` branch.
-Changes need to be carefully checked for reverese compatibility before
+Changes need to be carefully checked for reverse compatibility before
 merging to `master`, since heatshrink is running on devices that may not
 be easily recalled and updated.
 
