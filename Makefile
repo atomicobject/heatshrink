@@ -27,8 +27,7 @@ ci: test
 clean:
 	rm -f heatshrink test_heatshrink_{dynamic,static} \
 		*.o *.os *.od *.core *.a {dec,enc}_sm.png TAGS
-	rm -f ${BENCHMARK_OUT}/*
-	rmdir ${BENCHMARK_OUT}
+	rm -rf ${BENCHMARK_OUT}
 
 TAGS:
 	etags *.[ch]
@@ -52,13 +51,13 @@ DL=	curl -o ${CORPUS_ARCHIVE}
 
 bench: heatshrink corpus
 	mkdir -p ${BENCHMARK_OUT}
+	cd ${BENCHMARK_OUT} && tar vzxf ../${CORPUS_ARCHIVE}
 	time ./benchmark
 
 corpus: ${CORPUS_ARCHIVE}
 
 ${CORPUS_ARCHIVE}:
 	${DL} ${CORPUS_URL}
-	cd ${BENCHMARK_OUT} && tar vzxf ../${CORPUS_ARCHIVE}
 
 # Installation
 PREFIX ?=	/usr/local
