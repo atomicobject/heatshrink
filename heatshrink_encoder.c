@@ -274,7 +274,7 @@ static HSE_state st_step_search(heatshrink_encoder *hse) {
 
     uint16_t input_offset = get_input_offset(hse);
     uint16_t end = input_offset + msi;
-    uint16_t start = end - window_length;
+    uint16_t start = end - window_length + 1;
 
     uint16_t max_possible = lookahead_sz;
     if (hse->input_size - msi < lookahead_sz) {
