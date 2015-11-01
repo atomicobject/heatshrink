@@ -269,7 +269,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
         uint16_t mask = (1 << HEATSHRINK_DECODER_WINDOW_BITS(hsd)) - 1;
         uint16_t neg_offset = hsd->output_index;
         LOG("-- emitting %zu bytes from -%u bytes back\n", count, neg_offset);
-        ASSERT(neg_offset < mask + 1);
+        ASSERT(neg_offset <= mask + 1);
         ASSERT(count <= (size_t)(1 << BACKREF_COUNT_BITS(hsd)));
 
         for (i=0; i<count; i++) {
