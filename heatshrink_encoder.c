@@ -95,7 +95,7 @@ heatshrink_encoder *heatshrink_encoder_alloc(uint8_t window_sz2,
         HEATSHRINK_FREE(hse, sizeof(*hse) + buf_sz);
         return NULL;
     }
-    hse->search_index->size = index_sz;
+    hse->search_index->size = (uint16_t)index_sz;
 #endif
 
     LOG("-- allocated encoder with buffer size of %zu (%u byte input size)\n",
@@ -149,7 +149,7 @@ HSE_sink_res heatshrink_encoder_sink(heatshrink_encoder *hse,
     uint16_t write_offset = get_input_offset(hse) + hse->input_size;
     uint16_t ibs = get_input_buffer_size(hse);
     uint16_t rem = ibs - hse->input_size;
-    uint16_t cp_sz = rem < size ? rem : size;
+    uint16_t cp_sz = rem < size ? rem : (uint16_t)size;
 
     memcpy(&hse->buffer[write_offset], in_buf, cp_sz);
     *input_size = cp_sz;
@@ -533,7 +533,7 @@ static uint8_t push_outgoing_bits(heatshrink_encoder *hse, output_info *oi) {
         bits = hse->outgoing_bits >> (hse->outgoing_bits_count - 8);
     } else {
         count = hse->outgoing_bits_count;
-        bits = hse->outgoing_bits;
+        bits = (uint8_t)hse->outgoing_bits;
     }
 
     if (count > 0) {
@@ -592,13 +592,13 @@ static void save_backlog(heatshrink_encoder *hse) {
      * used for future matches. Don't bother checking whether the
      * input is less than the maximum size, because if it isn't,
      * we're done anyway. */
-    uint16_t rem = input_buf_sz - msi; // unprocessed bytes
-    uint16_t shift_sz = input_buf_sz + rem;
+    uint16_t rem = (uint16_t)input_buf_sz - msi; // unprocessed bytes
+    uint16_t shift_sz = (uint16_t)input_buf_sz + rem;
 
     memmove(&hse->buffer[0],
         &hse->buffer[input_buf_sz - rem],
         shift_sz);
         
     hse->match_scan_index = 0;
-    hse->input_size -= input_buf_sz - rem;
+    hse->input_size -= (uint16_t)input_buf_sz - rem;
 }
