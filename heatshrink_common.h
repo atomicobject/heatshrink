@@ -1,7 +1,7 @@
 #ifndef HEATSHRINK_H
 #define HEATSHRINK_H
 
-#define HEATSHRINK_AUTHOR "Scott Vokes <scott.vokes@atomicobject.com>"
+#define HEATSHRINK_AUTHOR "Scott Vokes <vokes.s@gmail.com>"
 #define HEATSHRINK_URL "https://github.com/atomicobject/heatshrink"
 
 /* Version 0.4.1 */
