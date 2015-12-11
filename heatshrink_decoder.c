@@ -108,7 +108,7 @@ HSD_sink_res heatshrink_decoder_sink(heatshrink_decoder *hsd,
     LOG("-- sinking %zd bytes\n", size);
     /* copy into input buffer (at head of buffers) */
     memcpy(&hsd->buffers[hsd->input_size], in_buf, size);
-    hsd->input_size += size;
+    hsd->input_size += (uint16_t)size;
     *input_size = size;
     return HSDR_SINK_OK;
 }
@@ -279,7 +279,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
             hsd->head_index++;
             LOG("  -- ++ 0x%02x\n", c);
         }
-        hsd->output_count -= count;
+        hsd->output_count -= (uint16_t)count;
         if (hsd->output_count == 0) { return HSDS_TAG_BIT; }
     }
     return HSDS_YIELD_BACKREF;
