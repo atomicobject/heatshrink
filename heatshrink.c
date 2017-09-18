@@ -409,7 +409,7 @@ static void proc_args(config *cfg, int argc, char **argv) {
         switch (a) {
         case 'h':               /* help */
             usage();
-            break;
+            /* FALLTHROUGH */
         case 'e':               /* encode */
             cfg->cmd = OP_ENC; break;
         case 'd':               /* decode */
