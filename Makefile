@@ -18,10 +18,11 @@ all: heatshrink test_runners libraries
 
 libraries: libheatshrink_static.a libheatshrink_dynamic.a
 
-test_runners: test_heatshrink_static test_heatshrink_dynamic
+test_runners: test_heatshrink_static test_heatshrink_dynamic test_heatshrink_rom
 test: test_runners
 	./test_heatshrink_static
 	./test_heatshrink_dynamic
+	./test_heatshrink_rom
 ci: test
 
 clean:
@@ -66,12 +67,20 @@ RM ?=		rm
 
 install: libraries heatshrink
 	${INSTALL} -c heatshrink ${PREFIX}/bin/
-	${INSTALL} -c libheatshrink_{static,dynamic}.a ${PREFIX}/lib/
-	${INSTALL} -c heatshrink_{common,config,decoder,encoder}.h ${PREFIX}/include/
+	${INSTALL} -c libheatshrink_static.a ${PREFIX}/lib/
+	${INSTALL} -c libheatshrink_dynamic.a ${PREFIX}/lib/
+	${INSTALL} -c heatshrink_common.h ${PREFIX}/include/
+	${INSTALL} -c heatshrink_config.h ${PREFIX}/include/
+	${INSTALL} -c heatshrink_encoder.h ${PREFIX}/include/
+	${INSTALL} -c heatshrink_decoder.h ${PREFIX}/include/
 
 uninstall:
-	${RM} -f ${PREFIX}/lib/libheatshrink_{static,dynamic}.a
-	${RM} -f ${PREFIX}/include/heatshrink_{common,config,decoder,encoder}.h
+	${RM} -f ${PREFIX}/lib/libheatshrink_static.a
+	${RM} -f ${PREFIX}/lib/libheatshrink_dynamic.a
+	${RM} -f ${PREFIX}/include/heatshrink_common.h
+	${RM} -f ${PREFIX}/include/heatshrink_config.h
+	${RM} -f ${PREFIX}/include/heatshrink_encoder.h
+	${RM} -f ${PREFIX}/include/heatshrink_decoder.h
 
 # Internal targets and rules
 
@@ -95,6 +104,9 @@ test_heatshrink_dynamic: test_heatshrink_dynamic.od test_heatshrink_dynamic_thef
 	${CC} -o $@ $< ${CFLAGS_DYNAMIC} test_heatshrink_dynamic_theft.od ${DYNAMIC_LDFLAGS}
 
 test_heatshrink_static: test_heatshrink_static.os libheatshrink_static.a
+	${CC} -o $@ $< ${CFLAGS_STATIC} ${STATIC_LDFLAGS}
+
+test_heatshrink_rom: test_heatshrink_rom.os libheatshrink_static.a
 	${CC} -o $@ $< ${CFLAGS_STATIC} ${STATIC_LDFLAGS}
 
 libheatshrink_static.a: ${STATIC_OBJS}

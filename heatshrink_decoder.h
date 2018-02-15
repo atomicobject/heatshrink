@@ -42,6 +42,8 @@ typedef enum {
 #endif
 
 typedef struct {
+    uint8_t *input_buffers;     /* input buffer pointer */
+    uint8_t *window_buffers;    /* window buffer pointer */
     uint16_t input_size;        /* bytes in input buffer */
     uint16_t input_index;       /* offset to next unprocessed input byte */
     uint16_t output_count;      /* how many bytes to output */
@@ -86,6 +88,10 @@ void heatshrink_decoder_reset(heatshrink_decoder *hsd);
  * indicate how many bytes were actually sunk (in case a buffer was filled). */
 HSD_sink_res heatshrink_decoder_sink(heatshrink_decoder *hsd,
     uint8_t *in_buf, size_t size, size_t *input_size);
+
+/* Point the decoder's input buffer to SIZE bytes of input. */
+HSD_sink_res heatshrink_decoder_fill(heatshrink_decoder *hsd,
+    uint8_t *in_buf, size_t size);
 
 /* Poll for output from the decoder, copying at most OUT_BUF_SIZE bytes into
  * OUT_BUF (setting *OUTPUT_SIZE to the actual amount copied). */
