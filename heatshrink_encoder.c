@@ -390,13 +390,13 @@ static uint16_t get_input_offset(heatshrink_encoder *hse) {
 }
 
 static uint16_t get_input_buffer_size(heatshrink_encoder *hse) {
-    return (1 << HEATSHRINK_ENCODER_WINDOW_BITS(hse));
     (void)hse;
+    return (1 << HEATSHRINK_ENCODER_WINDOW_BITS(hse));
 }
 
 static uint16_t get_lookahead_size(heatshrink_encoder *hse) {
-    return (1 << HEATSHRINK_ENCODER_LOOKAHEAD_BITS(hse));
     (void)hse;
+    return (1 << HEATSHRINK_ENCODER_LOOKAHEAD_BITS(hse));
 }
 
 static void do_indexing(heatshrink_encoder *hse) {
