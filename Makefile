@@ -66,12 +66,20 @@ RM ?=		rm
 
 install: libraries heatshrink
 	${INSTALL} -c heatshrink ${PREFIX}/bin/
-	${INSTALL} -c libheatshrink_{static,dynamic}.a ${PREFIX}/lib/
-	${INSTALL} -c heatshrink_{common,config,decoder,encoder}.h ${PREFIX}/include/
+	${INSTALL} -c libheatshrink_static.a ${PREFIX}/lib/
+	${INSTALL} -c libheatshrink_dynamic.a ${PREFIX}/lib/
+	${INSTALL} -c heatshrink_common.h ${PREFIX}/include/
+	${INSTALL} -c heatshrink_config.h ${PREFIX}/include/
+	${INSTALL} -c heatshrink_encoder.h ${PREFIX}/include/
+	${INSTALL} -c heatshrink_decoder.h ${PREFIX}/include/
 
 uninstall:
-	${RM} -f ${PREFIX}/lib/libheatshrink_{static,dynamic}.a
-	${RM} -f ${PREFIX}/include/heatshrink_{common,config,decoder,encoder}.h
+	${RM} -f ${PREFIX}/lib/libheatshrink_static.a
+	${RM} -f ${PREFIX}/lib/libheatshrink_dynamic.a
+	${RM} -f ${PREFIX}/include/heatshrink_common.h
+	${RM} -f ${PREFIX}/include/heatshrink_config.h
+	${RM} -f ${PREFIX}/include/heatshrink_encoder.h
+	${RM} -f ${PREFIX}/include/heatshrink_decoder.h
 
 # Internal targets and rules
 
