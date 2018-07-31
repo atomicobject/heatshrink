@@ -3,6 +3,7 @@
 
 #include "heatshrink_encoder.h"
 #include "heatshrink_decoder.h"
+#define GREATEST_USE_LONGJMP 0
 #include "greatest.h"
 
 #if HEATSHRINK_DYNAMIC_ALLOC

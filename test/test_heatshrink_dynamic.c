@@ -404,7 +404,7 @@ TEST decoder_poll_should_expand_short_literal_and_backref(void) {
     (void)heatshrink_decoder_poll(hsd, output, 6, &out_sz);
 
     if (0) dump_buf("output", output, out_sz);
-    ASSERT_EQ_FMT(6, out_sz, "%d");
+    ASSERT_EQ_FMT(6, (int)out_sz, "%d");
     ASSERT_EQ('f', output[0]);
     ASSERT_EQ('o', output[1]);
     ASSERT_EQ('o', output[2]);

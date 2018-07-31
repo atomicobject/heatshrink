@@ -466,7 +466,6 @@ static uint16_t find_longest_match(heatshrink_encoder *hse, uint16_t start,
 
     while (pos - (int16_t)start >= 0) {
         uint8_t * const pospoint = &buf[pos];
-        len = 0;
 
         /* Only check matches that will potentially beat the current maxlen.
          * This is redundant with the index if match_maxlen is 0, but the
