@@ -13,10 +13,10 @@ VENDOR =	vendor
 
 # If libtheft is available, build additional property-based tests.
 # Uncomment these to use it in test_heatshrink_dynamic.
-#CFLAGS += -DHEATSHRINK_HAS_THEFT
-#THEFT_PATH=	/usr/local/
-#THEFT_INC=	-I${THEFT_PATH}/include/
-#LDFLAGS += -L${THEFT_PATH}/lib -ltheft
+THEFT_PATH=	/usr/local/
+THEFT_INC=	-I${THEFT_PATH}/include/
+# CFLAGS += 	-DHEATSHRINK_HAS_THEFT
+# LDFLAGS +=	-L${THEFT_PATH}/lib -ltheft
 
 INC=		-I${INCLUDE} -I${SRC}
 CFLAGS += -std=c99 -g ${WARN} ${THEFT_INC} ${INC} ${OPTIMIZE}
@@ -116,7 +116,7 @@ TEST_OBJS_STATIC=	${BUILD}/test_heatshrink_static.o \
 
 
 ${BUILD}/test_heatshrink_dynamic: ${TEST_OBJS_DYNAMIC} ${BUILD}/libheatshrink_dynamic.a
-	${CC} -o $@ $< ${CFLAGS_DYNAMIC} ${DYNAMIC_LDFLAGS}
+	${CC} -o $@ ${TEST_OBJS_DYNAMIC} ${CFLAGS_DYNAMIC} ${DYNAMIC_LDFLAGS}
 
 ${BUILD}/test_heatshrink_static: ${TEST_OBJS_STATIC} ${BUILD}/libheatshrink_static.a
 	${CC} -o $@ $< ${CFLAGS_STATIC} ${STATIC_LDFLAGS}

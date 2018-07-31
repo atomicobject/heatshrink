@@ -24,115 +24,42 @@ SUITE(properties);
 static uint8_t *output;
 static uint8_t *output2;
 
-typedef struct {
-    int limit;
-    int fails;
-    int dots;
+struct test_env {
+    int limit_bits;
     uint16_t decoder_buffer_size;
 } test_env;
 
-typedef struct {
+struct rbuf {
     size_t size;
-    uint8_t buf[];
-} rbuf;
+    uint64_t buf[];
+};
 
-static void *rbuf_alloc_cb(struct theft *t, theft_hash seed, void *env) {
-    test_env *te = (test_env *)env;
-    //printf("seed is 0x%016llx\n", seed);
+static enum theft_alloc_res
+rbuf_alloc_cb(struct theft *t, void *env, void **output) {
+    struct test_env *te = theft_hook_get_env(t);
 
-    size_t sz = (size_t)(seed % te->limit) + 1;
-    rbuf *r = malloc(sizeof(rbuf) + sz);
-    if (r == NULL) { return THEFT_ERROR; }
+    size_t sz = theft_random_bits(t, te->limit_bits);
+
+    struct rbuf *r = malloc(sizeof(struct rbuf) + sz);
+    if (r == NULL) { return THEFT_ALLOC_ERROR; }
     r->size = sz;
 
-    for (size_t i = 0; i < sz; i += sizeof(theft_hash)) {
-        theft_hash s = theft_random(t);
-        for (uint8_t b = 0; b < sizeof(theft_hash); b++) {
-            if (i + b >= sz) { break; }
-            r->buf[i + b] = (uint8_t) (s >> (8*b)) & 0xff;
-        }
-    }
+    theft_random_bits_bulk(t, sz, r->buf);
 
-    return r;
-}
-
-static void rbuf_free_cb(void *instance, void *env) {
-    free(instance);
     (void)env;
+    *output = r;
+    return THEFT_ALLOC_OK;
 }
 
-static uint64_t rbuf_hash_cb(void *instance, void *env) {
-    rbuf *r = (rbuf *)instance;
-    (void)env;
-    return theft_hash_onepass(r->buf, r->size);
-}
-
-/* Make a copy of a buffer, keeping NEW_SZ bytes starting at OFFSET. */
-static void *copy_rbuf_subset(rbuf *cur, size_t new_sz, size_t byte_offset) {
-    if (new_sz == 0) { return THEFT_DEAD_END; }
-    rbuf *nr = malloc(sizeof(rbuf) + new_sz);
-    if (nr == NULL) { return THEFT_ERROR; }
-    nr->size = new_sz;
-    memcpy(nr->buf, &cur->buf[byte_offset], new_sz);
-    /* printf("%zu -> %zu\n", cur->size, new_sz); */
-    return nr;
-}
-
-/* Make a copy of a buffer, but only PORTION, starting OFFSET in
- * (e.g. the third quarter is (0.25 at +0.75). Rounds to ints. */
-static void *copy_rbuf_percent(rbuf *cur, float portion, float offset) {
-    size_t new_sz = cur->size * portion;
-    size_t byte_offset = (size_t)(cur->size * offset);
-    return copy_rbuf_subset(cur, new_sz, byte_offset);
-}
-
-/* How to shrink a random buffer to a simpler one. */
-static void *rbuf_shrink_cb(void *instance, uint32_t tactic, void *env) {
-    rbuf *cur = (rbuf *)instance;
-
-    if (tactic == 0) {          /* first half */
-        return copy_rbuf_percent(cur, 0.5, 0);
-    } else if (tactic == 1) {   /* second half */
-        return copy_rbuf_percent(cur, 0.5, 0.5);
-    } else if (tactic <= 18) {  /* drop 1-16 bytes at start */
-        const int last_tactic = 1;
-        const size_t drop = tactic - last_tactic;
-        if (cur->size < drop) { return THEFT_DEAD_END; }
-        return copy_rbuf_subset(cur, cur->size - drop, drop);
-    } else if (tactic <= 34) {  /* drop 1-16 bytes at end */
-        const int last_tactic = 18;
-        const size_t drop = tactic - last_tactic;
-        if (cur->size < drop) { return THEFT_DEAD_END; }
-        return copy_rbuf_subset(cur, cur->size - drop, 0);
-    } else if (tactic == 35) {
-        /* Divide every byte by 2, saturating at 0 */
-        rbuf *cp = copy_rbuf_percent(cur, 1, 0);
-        if (cp == NULL) { return THEFT_ERROR; }
-        for (size_t i = 0; i < cp->size; i++) { cp->buf[i] /= 2; }
-        return cp;
-    } else if (tactic == 36) {
-        /* subtract 1 from every byte, saturating at 0 */
-        rbuf *cp = copy_rbuf_percent(cur, 1, 0);
-        if (cp == NULL) { return THEFT_ERROR; }
-        for (size_t i = 0; i < cp->size; i++) {
-            if (cp->buf[i] > 0) { cp->buf[i]--; }
-        }
-        return cp;
-    } else {
-        (void)env;
-        return THEFT_NO_MORE_TACTICS;
-    }
-
-    return THEFT_NO_MORE_TACTICS;
-}
-
-static void rbuf_print_cb(FILE *f, void *instance, void *env) {
-    rbuf *r = (rbuf *)instance;
+static void
+rbuf_print_cb(FILE *f, const void *instance, void *env) {
+    struct rbuf *r = (struct rbuf *)instance;
     (void)env;
     fprintf(f, "buf[%zd]:\n    ", r->size);
     uint8_t bytes = 0;
+    const uint8_t *buf = (const uint8_t *)r->buf;
     for (size_t i = 0; i < r->size; i++) {
-        fprintf(f, "%02x", r->buf[i]);
+        fprintf(f, "%02x", buf[i]);
         bytes++;
         if (bytes == 16) {
             fprintf(f, "\n    ");
@@ -144,143 +71,96 @@ static void rbuf_print_cb(FILE *f, void *instance, void *env) {
 
 static struct theft_type_info rbuf_info = {
     .alloc = rbuf_alloc_cb,
-    .free = rbuf_free_cb,
-    .hash = rbuf_hash_cb,
-    .shrink = rbuf_shrink_cb,
+    .free = theft_generic_free_cb,
     .print = rbuf_print_cb,
+    .autoshrink_config = { .enable = true },
 };
 
-static void *window_alloc_cb(struct theft *t, theft_seed seed, void *env) {
+static enum theft_alloc_res
+window_alloc_cb(struct theft *t, void *env, void **output) {
     uint8_t *window = malloc(sizeof(uint8_t));
-    if (window == NULL) { return THEFT_ERROR; }
-    *window = (seed % (HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_WINDOW_BITS))
+    if (window == NULL) { return THEFT_ALLOC_ERROR; }
+    *window = theft_random_choice(t,
+        HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_WINDOW_BITS)
       + HEATSHRINK_MIN_WINDOW_BITS;
-    (void)t;
     (void)env;
-    return window;
+    *output = window;
+    return THEFT_ALLOC_OK;
 }
 
-static void window_free_cb(void *instance, void *env) {
-    free(instance);
-    (void)env;
-}
-
-static theft_hash window_hash_cb(void *instance, void *env) {
-    (void)env;
-    return *(uint8_t *)instance;
-}
-
-static void window_print_cb(FILE *f, void *instance, void *env) {
+static void
+window_print_cb(FILE *f, const void *instance, void *env) {
     fprintf(f, "%u", (*(uint8_t *)instance));
     (void)env;
 }
 
 static struct theft_type_info window_info = {
     .alloc = window_alloc_cb,
-    .free = window_free_cb,
-    .hash = window_hash_cb,
+    .free = theft_generic_free_cb,
     .print = window_print_cb,
+    .autoshrink_config = { .enable = true },
 };
 
-static void *lookahead_alloc_cb(struct theft *t, theft_seed seed, void *env) {
-    uint8_t *window = malloc(sizeof(uint8_t));
-    if (window == NULL) { return THEFT_ERROR; }
-    *window = (seed % (HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_LOOKAHEAD_BITS))
+static enum theft_alloc_res
+lookahead_alloc_cb(struct theft *t, void *env, void **output) {
+    uint8_t *lookahead = malloc(sizeof(uint8_t));
+    if (lookahead == NULL) { return THEFT_ALLOC_ERROR; }
+    /* Note: There isn't a max lookahead size, because it always
+     * has to be <= the max window size. */
+    *lookahead = theft_random_choice(t,
+        HEATSHRINK_MAX_WINDOW_BITS - HEATSHRINK_MIN_LOOKAHEAD_BITS)
       + HEATSHRINK_MIN_LOOKAHEAD_BITS;
-    (void)t;
     (void)env;
-    return window;
+    *output = lookahead;
+    return THEFT_ALLOC_OK;
 }
 
-static void lookahead_free_cb(void *instance, void *env) {
-    free(instance);
-    (void)env;
-}
-
-static theft_hash lookahead_hash_cb(void *instance, void *env) {
-    (void)env;
-    return *(uint8_t *)instance;
-}
-
-static void lookahead_print_cb(FILE *f, void *instance, void *env) {
+static void
+lookahead_print_cb(FILE *f, const void *instance, void *env) {
     fprintf(f, "%u", (*(uint8_t *)instance));
     (void)env;
 }
 
 static struct theft_type_info lookahead_info = {
     .alloc = lookahead_alloc_cb,
-    .free = lookahead_free_cb,
-    .hash = lookahead_hash_cb,
+    .free = theft_generic_free_cb,
     .print = lookahead_print_cb,
+    .autoshrink_config = { .enable = true },
 };
 
-
-static void *decoder_buf_alloc_cb(struct theft *t, theft_seed seed, void *env) {
+static enum theft_alloc_res
+decoder_buf_alloc_cb(struct theft *t, void *env, void **output) {
     uint16_t *size = malloc(sizeof(uint16_t));
-    if (size == NULL) { return THEFT_ERROR; }
+    if (size == NULL) { return THEFT_ALLOC_ERROR; }
 
     /* Get a random uint16_t, and only keep bottom 0-15 bits at random,
      * to bias towards smaller buffers. */
-    *size = seed & 0xFFFF;
-    *size &= (1 << (theft_random(t) & 0xF)) - 1;
+    *size = theft_random_bits(t, 15);
 
     if (*size == 0) { *size = 1; }   // round up to 1
-    (void)t;
     (void)env;
-    return size;
+    *output = size;
+    return THEFT_ALLOC_OK;
 }
 
-static void decoder_buf_free_cb(void *instance, void *env) {
-    free(instance);
-    (void)env;
-}
-
-static theft_hash decoder_buf_hash_cb(void *instance, void *env) {
-    (void)env;
-    return *(uint16_t *)instance;
-}
-
-static void decoder_buf_print_cb(FILE *f, void *instance, void *env) {
+static void
+decoder_buf_print_cb(FILE *f, const void *instance, void *env) {
     fprintf(f, "%u", (*(uint16_t *)instance));
     (void)env;
 }
 
 static struct theft_type_info decoder_buf_info = {
     .alloc = decoder_buf_alloc_cb,
-    .free = decoder_buf_free_cb,
-    .hash = decoder_buf_hash_cb,
+    .free = theft_generic_free_cb,
     .print = decoder_buf_print_cb,
+    .autoshrink_config = { .enable = true },
 };
-
-static theft_progress_callback_res
-progress_cb(struct theft_trial_info *info, void *env) {
-    test_env *te = (test_env *)env;
-    if ((info->trial & 0xff) == 0) {
-        printf(".");
-        fflush(stdout);
-        te->dots++;
-        if (te->dots == 64) {
-            printf("\n");
-            te->dots = 0;
-        }
-    }
-
-    if (info->status == THEFT_TRIAL_FAIL) {
-        te->fails++;
-        rbuf *cur = info->args[0];
-        if (cur->size < 5) { return THEFT_PROGRESS_HALT; }
-    }
-
-    if (te->fails > 10) {
-        return THEFT_PROGRESS_HALT;
-    }
-    return THEFT_PROGRESS_CONTINUE;
-}
 
 /* For an arbitrary input buffer, it should never get stuck in a
  * state where the data has been sunk but no data can be polled. */
-static theft_trial_res
-prop_should_not_get_stuck(void *input, void *window, void *lookahead) {
+static enum theft_trial_res
+prop_should_not_get_stuck(struct theft *t, void *input, void *window, void *lookahead) {
+    (void)t;
     assert(window);
     uint8_t window_sz2 = *(uint8_t *)window;
     assert(lookahead);
@@ -291,10 +171,11 @@ prop_should_not_get_stuck(void *input, void *window, void *lookahead) {
         window_sz2, lookahead_sz2);
     if (hsd == NULL) { return THEFT_TRIAL_ERROR; }
 
-    rbuf *r = (rbuf *)input;
+    struct rbuf *r = (struct rbuf *)input;
 
     size_t count = 0;
-    HSD_sink_res sres = heatshrink_decoder_sink(hsd, r->buf, r->size, &count);
+    uint8_t *buf = (uint8_t *)r->buf;
+    HSD_sink_res sres = heatshrink_decoder_sink(hsd, buf, r->size, &count);
     if (sres != HSDR_SINK_OK) { return THEFT_TRIAL_ERROR; }
     
     size_t out_sz = 0;
@@ -308,41 +189,22 @@ prop_should_not_get_stuck(void *input, void *window, void *lookahead) {
     return THEFT_TRIAL_PASS;
 }
 
-static bool get_time_seed(theft_seed *seed)
-{
-    struct timeval tv;
-    if (-1 == gettimeofday(&tv, NULL)) { return false; }
-    *seed = (theft_seed)((tv.tv_sec << 32) | tv.tv_usec);
-    /* printf("seed is 0x%016llx\n", *seed); */
-    return true;
-}
-
 TEST decoder_fuzzing_should_not_detect_stuck_state(void) {
-    // Get a random number seed based on the time
-    theft_seed seed;
-    if (!get_time_seed(&seed)) { FAIL(); }
+    theft_seed seed = theft_seed_of_time();
     
     /* Pass the max buffer size for this property (4 KB) in a closure */
-    test_env env = { .limit = 1 << 12 };
+    struct test_env env = { .limit_bits = 12 };
 
-    theft_seed always_seeds = { 0xe87bb1f61032a061 };
-
-    struct theft *t = theft_init(0);
-    struct theft_cfg cfg = {
+    struct theft_run_config cfg = {
         .name = __func__,
-        .fun = prop_should_not_get_stuck,
+        .prop3 = prop_should_not_get_stuck,
         .type_info = { &rbuf_info, &window_info, &lookahead_info },
         .seed = seed,
         .trials = 100000,
-        .progress_cb = progress_cb,
-        .env = &env,
-
-        .always_seeds = &always_seeds,
-        .always_seed_count = 1,
+        .hooks.env = &env,
     };
 
-    theft_run_res res = theft_run(t, &cfg);
-    theft_free(t);
+    enum theft_run_res res = theft_run(&cfg);
     printf("\n");
     GREATEST_ASSERT_EQm("should_not_get_stuck", THEFT_RUN_PASS, res);
     PASS();
@@ -421,9 +283,10 @@ static bool do_decompress(heatshrink_decoder *hsd,
     return dfres == HSDR_FINISH_DONE;
 }
 
-static theft_trial_res
-prop_encoded_and_decoded_data_should_match(void *input,
+static enum theft_trial_res
+prop_encoded_and_decoded_data_should_match(struct theft *t, void *input,
         void *window, void *lookahead, void *decoder_buffer_size) {
+    (void)t;
     assert(window);
     uint8_t window_sz2 = *(uint8_t *)window;
     assert(lookahead);
@@ -438,10 +301,11 @@ prop_encoded_and_decoded_data_should_match(void *input,
     heatshrink_decoder *hsd = heatshrink_decoder_alloc(buf_size, window_sz2, lookahead_sz2);
     if (hsd == NULL) { return THEFT_TRIAL_ERROR; }
     
-    rbuf *r = (rbuf *)input;
+    struct rbuf *r = (struct rbuf *)input;
 
     size_t compressed_size = 0;
-    if (!do_compress(hse, r->buf, r->size, output,
+    uint8_t *buf = (uint8_t *)r->buf;
+    if (!do_compress(hse, buf, r->size, output,
             BUF_SIZE, &compressed_size)) {
         return THEFT_TRIAL_ERROR;
     }
@@ -466,24 +330,20 @@ prop_encoded_and_decoded_data_should_match(void *input,
 }
 
 TEST encoded_and_decoded_data_should_match(void) {
-    test_env env = { .limit = 1 << 11 };
+    struct test_env env = { .limit_bits = 11 };
     
-    theft_seed seed;
-    if (!get_time_seed(&seed)) { FAIL(); }
+    theft_seed seed = theft_seed_of_time();
 
-    struct theft *t = theft_init(0);
-    struct theft_cfg cfg = {
+    struct theft_run_config cfg = {
         .name = __func__,
-        .fun = prop_encoded_and_decoded_data_should_match,
+        .prop4 = prop_encoded_and_decoded_data_should_match,
         .type_info = { &rbuf_info, &window_info, &lookahead_info, &decoder_buf_info, },
         .seed = seed,
         .trials = 1000000,
-        .env = &env,
-        .progress_cb = progress_cb,
+        .hooks.env = &env,
     };
 
-    theft_run_res res = theft_run(t, &cfg);
-    theft_free(t);
+    enum theft_run_res res = theft_run(&cfg);
     printf("\n");
     ASSERT_EQ(THEFT_RUN_PASS, res);
     PASS();
@@ -493,9 +353,10 @@ static size_t ceil_nine_eighths(size_t sz) {
     return sz + sz/8 + (sz & 0x07 ? 1 : 0);
 }
 
-static theft_trial_res
-prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(void *input,
-        void *window, void *lookahead) {
+static enum theft_trial_res
+prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(struct theft *t,
+    void *input, void *window, void *lookahead) {
+    (void)t;
     assert(window);
     uint8_t window_sz2 = *(uint8_t *)window;
     assert(lookahead);
@@ -505,10 +366,11 @@ prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(void
     heatshrink_encoder *hse = heatshrink_encoder_alloc(window_sz2, lookahead_sz2);
     if (hse == NULL) { return THEFT_TRIAL_ERROR; }
     
-    rbuf *r = (rbuf *)input;
+    struct rbuf *r = (struct rbuf *)input;
 
     size_t compressed_size = 0;
-    if (!do_compress(hse, r->buf, r->size, output,
+    uint8_t *buf = (uint8_t *)r->buf;
+    if (!do_compress(hse, buf, r->size, output,
             BUF_SIZE, &compressed_size)) {
         return THEFT_TRIAL_ERROR;
     }
@@ -523,31 +385,29 @@ prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(void
 }
 
 TEST encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst(void) {
-    test_env env = { .limit = 1 << 11 };
+    struct test_env env = { .limit_bits = 11 };
     
-    theft_seed seed;
-    if (!get_time_seed(&seed)) { FAIL(); }
+    theft_seed seed = theft_seed_of_time();
 
-    struct theft *t = theft_init(0);
-    struct theft_cfg cfg = {
+    struct theft_run_config cfg = {
         .name = __func__,
-        .fun = prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst,
+        .prop3 = prop_encoding_data_should_never_increase_it_by_more_than_an_eighth_at_worst,
         .type_info = { &rbuf_info, &window_info, &lookahead_info },
         .seed = seed,
         .trials = 10000,
-        .env = &env,
-        .progress_cb = progress_cb,
+        .hooks.env = &env,
     };
 
-    theft_run_res res = theft_run(t, &cfg);
-    theft_free(t);
+    enum theft_run_res res = theft_run(&cfg);
     printf("\n");
     ASSERT_EQ(THEFT_RUN_PASS, res);
     PASS();
 }
 
-static theft_trial_res
-prop_encoder_should_always_make_progress(void *instance, void *window, void *lookahead) {
+static enum theft_trial_res
+prop_encoder_should_always_make_progress(struct theft *t,
+    void *instance, void *window, void *lookahead) {
+    (void)t;
     assert(window);
     uint8_t window_sz2 = *(uint8_t *)window;
     assert(lookahead);
@@ -557,16 +417,18 @@ prop_encoder_should_always_make_progress(void *instance, void *window, void *loo
     heatshrink_encoder *hse = heatshrink_encoder_alloc(window_sz2, lookahead_sz2);
     if (hse == NULL) { return THEFT_TRIAL_ERROR; }
     
-    rbuf *r = (rbuf *)instance;
+    struct rbuf *r = (struct rbuf *)instance;
 
     size_t sunk = 0;
     int no_progress = 0;
+
+    uint8_t *buf = (uint8_t *)r->buf;
 
     while (1) {
         if (sunk < r->size) {
             size_t input_size = 0;
             HSE_sink_res esres = heatshrink_encoder_sink(hse,
-                &r->buf[sunk], r->size - sunk, &input_size);
+                &buf[sunk], r->size - sunk, &input_size);
             if (esres != HSER_SINK_OK) { return THEFT_TRIAL_ERROR; }
             sunk += input_size;
         } else {
@@ -598,31 +460,29 @@ prop_encoder_should_always_make_progress(void *instance, void *window, void *loo
 }
 
 TEST encoder_should_always_make_progress(void) {
-    test_env env = { .limit = 1 << 15 };
+    struct test_env env = { .limit_bits = 15 };
     
-    theft_seed seed;
-    if (!get_time_seed(&seed)) { FAIL(); }
+    theft_seed seed = theft_seed_of_time();
 
-    struct theft *t = theft_init(0);
-    struct theft_cfg cfg = {
+    struct theft_run_config cfg = {
         .name = __func__,
-        .fun = prop_encoder_should_always_make_progress,
+        .prop3 = prop_encoder_should_always_make_progress,
         .type_info = { &rbuf_info, &window_info, &lookahead_info },
         .seed = seed,
         .trials = 10000,
-        .env = &env,
-        .progress_cb = progress_cb,
+        .hooks.env = &env,
     };
 
-    theft_run_res res = theft_run(t, &cfg);
-    theft_free(t);
+    enum theft_run_res res = theft_run(&cfg);
     printf("\n");
     ASSERT_EQ(THEFT_RUN_PASS, res);
     PASS();
 }
 
-static theft_trial_res
-prop_decoder_should_always_make_progress(void *instance, void *window, void *lookahead) {
+static enum theft_trial_res
+prop_decoder_should_always_make_progress(struct theft *t,
+    void *instance, void *window, void *lookahead) {
+    (void)t;
     assert(window);
     uint8_t window_sz2 = *(uint8_t *)window;
     assert(lookahead);
@@ -635,16 +495,17 @@ prop_decoder_should_always_make_progress(void *instance, void *window, void *loo
         return THEFT_TRIAL_ERROR;
     }
     
-    rbuf *r = (rbuf *)instance;
+    struct rbuf *r = (struct rbuf *)instance;
 
     size_t sunk = 0;
     int no_progress = 0;
+    uint8_t *buf = (uint8_t *)r->buf;
 
     while (1) {
         if (sunk < r->size) {
             size_t input_size = 0;
             HSD_sink_res sres = heatshrink_decoder_sink(hsd,
-                &r->buf[sunk], r->size - sunk, &input_size);
+                &buf[sunk], r->size - sunk, &input_size);
             if (sres < 0) {
                 fprintf(stderr, "Sink error %d\n", sres);
                 return THEFT_TRIAL_ERROR;
@@ -682,24 +543,20 @@ prop_decoder_should_always_make_progress(void *instance, void *window, void *loo
 }
 
 TEST decoder_should_always_make_progress(void) {
-    test_env env = { .limit = 1 << 15 };
+    struct test_env env = { .limit_bits = 15 };
     
-    theft_seed seed;
-    if (!get_time_seed(&seed)) { FAIL(); }
+    theft_seed seed = theft_seed_of_time();
 
-    struct theft *t = theft_init(0);
-    struct theft_cfg cfg = {
+    struct theft_run_config cfg = {
         .name = __func__,
-        .fun = prop_decoder_should_always_make_progress,
+        .prop3 = prop_decoder_should_always_make_progress,
         .type_info = { &rbuf_info, &window_info, &lookahead_info },
         .seed = seed,
         .trials = 10000,
-        .env = &env,
-        .progress_cb = progress_cb,
+        .hooks.env = &env,
     };
 
-    theft_run_res res = theft_run(t, &cfg);
-    theft_free(t);
+    enum theft_run_res res = theft_run(&cfg);
     printf("\n");
     ASSERT_EQ(THEFT_RUN_PASS, res);
     PASS();
