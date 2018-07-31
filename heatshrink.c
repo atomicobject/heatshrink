@@ -244,7 +244,7 @@ static void close_and_report(config *cfg) {
 
 static int encoder_sink_read(config *cfg, heatshrink_encoder *hse,
         uint8_t *data, size_t data_sz) {
-    size_t out_sz = 4096;
+    size_t out_sz = cfg->buffer_size;
     uint8_t out_buf[out_sz];
     memset(out_buf, 0, out_sz);
     size_t sink_sz = 0;
@@ -313,7 +313,7 @@ static int decoder_sink_read(config *cfg, heatshrink_decoder *hsd,
     io_handle *out = cfg->out;
     size_t sink_sz = 0;
     size_t poll_sz = 0;
-    size_t out_sz = 4096;
+    size_t out_sz = cfg->buffer_size;
     uint8_t out_buf[out_sz];
     memset(out_buf, 0, out_sz);
 
