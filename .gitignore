@@ -1,11 +1,1 @@
-heatshrink
-test_heatshrink_dynamic
-test_heatshrink_static
-*.o
-*.od
-*.os
-*.a
-*.core
-*.dSYM
-*.exe
-benchmark_out/
+build/

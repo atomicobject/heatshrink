@@ -1,9 +1,15 @@
-PROJECT = heatshrink
-OPTIMIZE = -O3
-WARN = -Wall -Wextra -pedantic #-Werror
-WARN += -Wmissing-prototypes
-WARN += -Wstrict-prototypes
-WARN += -Wmissing-declarations
+PROJECT=	heatshrink
+OPTIMIZE=	-O3
+WARN = 		-Wall -Wextra -pedantic #-Werror
+WARN += 	-Wmissing-prototypes
+WARN += 	-Wstrict-prototypes
+WARN += 	-Wmissing-declarations
+
+BUILD =		build
+SRC =		src
+INCLUDE =	include
+TEST =		test
+VENDOR =	vendor
 
 # If libtheft is available, build additional property-based tests.
 # Uncomment these to use it in test_heatshrink_dynamic.
@@ -12,49 +18,50 @@ WARN += -Wmissing-declarations
 #THEFT_INC=	-I${THEFT_PATH}/include/
 #LDFLAGS += -L${THEFT_PATH}/lib -ltheft
 
-CFLAGS += -std=c99 -g ${WARN} ${THEFT_INC} ${OPTIMIZE}
+INC=		-I${INCLUDE} -I${SRC}
+CFLAGS += -std=c99 -g ${WARN} ${THEFT_INC} ${INC} ${OPTIMIZE}
 
-all: heatshrink test_runners libraries
+all: ${BUILD}/heatshrink test_runners libraries
 
-libraries: libheatshrink_static.a libheatshrink_dynamic.a
+libraries: ${BUILD}/libheatshrink_static.a ${BUILD}/libheatshrink_dynamic.a
 
-test_runners: test_heatshrink_static test_heatshrink_dynamic
+test_runners: ${BUILD}/test_heatshrink_static ${BUILD}/test_heatshrink_dynamic
+
 test: test_runners
-	./test_heatshrink_static
-	./test_heatshrink_dynamic
+	${BUILD}/test_heatshrink_static
+	${BUILD}/test_heatshrink_dynamic
+
 ci: test
 
 clean:
-	rm -f heatshrink test_heatshrink_{dynamic,static} \
-		*.o *.os *.od *.core *.a {dec,enc}_sm.png TAGS
+	rm -rf ${BUILD}
 	rm -rf ${BENCHMARK_OUT}
+	rm -f TAGS
 
 TAGS:
 	etags *.[ch]
 
-diagrams: dec_sm.png enc_sm.png
+diagrams: ${BUILD}/dec_sm.png ${BUILD}/enc_sm.png
 
-dec_sm.png: dec_sm.dot
+${BUILD}/%.png: ${SRC}/%.dot
 	dot -o $@ -Tpng $<
 
-enc_sm.png: enc_sm.dot
-	dot -o $@ -Tpng $<
 
 # Benchmarking
 CORPUS_ARCHIVE=	cantrbry.tar.gz
 CORPUS_URL=	http://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
-BENCHMARK_OUT=	benchmark_out
+BENCHMARK_OUT=	${BUILD}/benchmark_out
 
 ## Uncomment one of these.
-DL=	curl -o ${CORPUS_ARCHIVE}
-#DL=	wget -O ${CORPUS_ARCHIVE}
+DL=	curl -o ${BUILD}/${CORPUS_ARCHIVE}
+#DL=	wget -O ${BUILD}/${CORPUS_ARCHIVE}
 
-bench: heatshrink corpus
+bench: ${BUILD}/heatshrink corpus
 	mkdir -p ${BENCHMARK_OUT}
 	cd ${BENCHMARK_OUT} && tar vzxf ../${CORPUS_ARCHIVE}
-	time ./benchmark
+	time test/benchmark
 
-corpus: ${CORPUS_ARCHIVE}
+corpus: ${BUILD}/${CORPUS_ARCHIVE}
 
 ${CORPUS_ARCHIVE}:
 	${DL} ${CORPUS_URL}
@@ -85,38 +92,68 @@ uninstall:
 
 OBJS = heatshrink_encoder.o heatshrink_decoder.o
 
-DYNAMIC_OBJS= $(OBJS:.o=.od)
-STATIC_OBJS=  $(OBJS:.o=.os)
+DYNAMIC_OBJS= 	${BUILD}/dynamic/heatshrink_decoder.o \
+		${BUILD}/dynamic/heatshrink_encoder.o \
 
-DYNAMIC_LDFLAGS= ${LDFLAGS} -L. -lheatshrink_dynamic
-STATIC_LDFLAGS= ${LDFLAGS} -L. -lheatshrink_static
+STATIC_OBJS= 	${BUILD}/static/heatshrink_decoder.o \
+		${BUILD}/static/heatshrink_encoder.o \
+
+DYNAMIC_LDFLAGS= ${LDFLAGS} -L${BUILD} -lheatshrink_dynamic
+STATIC_LDFLAGS= ${LDFLAGS} -L${BUILD} -lheatshrink_static
 
 # Libraries should be built separately for versions
 # with and without dynamic allocation.
-CFLAGS_STATIC = ${CFLAGS} -DHEATSHRINK_DYNAMIC_ALLOC=0
-CFLAGS_DYNAMIC = ${CFLAGS} -DHEATSHRINK_DYNAMIC_ALLOC=1
+CFLAGS_STATIC = ${CFLAGS} -I${VENDOR} -DHEATSHRINK_DYNAMIC_ALLOC=0
+CFLAGS_DYNAMIC = ${CFLAGS} -I${VENDOR} -DHEATSHRINK_DYNAMIC_ALLOC=1
 
-heatshrink: heatshrink.od libheatshrink_dynamic.a
-	${CC} -o $@ $^ ${CFLAGS_DYNAMIC} -L. -lheatshrink_dynamic
+${BUILD}/heatshrink: ${BUILD}/heatshrink.o ${BUILD}/libheatshrink_dynamic.a
+	${CC} -o $@ $^ ${CFLAGS_DYNAMIC} -L${BUILD} -lheatshrink_dynamic
 
-test_heatshrink_dynamic: test_heatshrink_dynamic.od test_heatshrink_dynamic_theft.od libheatshrink_dynamic.a
-	${CC} -o $@ $< ${CFLAGS_DYNAMIC} test_heatshrink_dynamic_theft.od ${DYNAMIC_LDFLAGS}
+TEST_OBJS_DYNAMIC=	${BUILD}/test_heatshrink_dynamic.o \
+			${BUILD}/test_heatshrink_dynamic_theft.o \
 
-test_heatshrink_static: test_heatshrink_static.os libheatshrink_static.a
+TEST_OBJS_STATIC=	${BUILD}/test_heatshrink_static.o \
+
+
+${BUILD}/test_heatshrink_dynamic: ${TEST_OBJS_DYNAMIC} ${BUILD}/libheatshrink_dynamic.a
+	${CC} -o $@ $< ${CFLAGS_DYNAMIC} ${DYNAMIC_LDFLAGS}
+
+${BUILD}/test_heatshrink_static: ${TEST_OBJS_STATIC} ${BUILD}/libheatshrink_static.a
 	${CC} -o $@ $< ${CFLAGS_STATIC} ${STATIC_LDFLAGS}
 
-libheatshrink_static.a: ${STATIC_OBJS}
+${BUILD}/libheatshrink_static.a: ${STATIC_OBJS}
 	ar -rcs $@ $^
 
-libheatshrink_dynamic.a: ${DYNAMIC_OBJS}
+${BUILD}/libheatshrink_dynamic.a: ${DYNAMIC_OBJS}
 	ar -rcs $@ $^
 
-%.od: %.c
+${BUILD}/dynamic/%.o: ${SRC}/%.c | ${BUILD}/dynamic/
 	${CC} -c -o $@ $< ${CFLAGS_DYNAMIC}
 
-%.os: %.c
+${BUILD}/static/%.o: ${SRC}/%.c | ${BUILD}/static/
 	${CC} -c -o $@ $< ${CFLAGS_STATIC}
 
-*.os: Makefile *.h
-*.od: Makefile *.h
+${BUILD}/%.o: ${SRC}/%.c | ${BUILD}
+	${CC} -c -o $@ $< ${CFLAGS_DYNAMIC}
+
+${BUILD}/test_heatshrink_static.o: ${TEST}/test_heatshrink_static.c | ${BUILD}
+	${CC} -c -o $@ $< ${CFLAGS_STATIC}
+
+${BUILD}/test_heatshrink_dynamic.o: ${TEST}/test_heatshrink_dynamic.c | ${BUILD}
+	${CC} -c -o $@ $< ${CFLAGS_DYNAMIC}
+
+${BUILD}/test_heatshrink_dynamic_theft.o: ${TEST}/test_heatshrink_dynamic_theft.c | ${BUILD}
+	${CC} -c -o $@ $< ${CFLAGS_DYNAMIC}
+
+${BUILD}:
+	mkdir ${BUILD}
+
+${BUILD}/static/: | ${BUILD}
+	mkdir ${BUILD}/static
+
+${BUILD}/dynamic/: | ${BUILD}
+	mkdir ${BUILD}/dynamic
+
+${BUILD}/*.o: Makefile ${INCLUDE}/*.h ${SRC}/*.h
+
 

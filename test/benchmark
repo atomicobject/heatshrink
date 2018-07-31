@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BENCHMARK_OUT=benchmark_out
+BENCHMARK_OUT=build/benchmark_out
 HS=../heatshrink
 
 cd ${BENCHMARK_OUT}
