@@ -79,7 +79,7 @@ heatshrink_encoder *heatshrink_encoder_alloc(uint8_t window_sz2,
     /* Note: 2 * the window size is used because the buffer needs to fit
      * (1 << window_sz2) bytes for the current input, and an additional
      * (1 << window_sz2) bytes for the previous buffer of input, which
-     * will be scanned for useful backreferences. */
+     * will be scanned for useful backrefs. */
     size_t buf_sz = (2 << window_sz2);
 
     heatshrink_encoder *hse = HEATSHRINK_MALLOC(sizeof(*hse) + buf_sz);
@@ -295,7 +295,7 @@ static HSE_state st_step_search(heatshrink_encoder *hse) {
         LOG("ss Found match of %d bytes at %d\n", match_length, match_pos);
         hse->match_pos = match_pos;
         hse->match_length = match_length;
-        ASSERT(match_pos <= 1 << HEATSHRINK_ENCODER_WINDOW_BITS(hse) /*window_length*/);
+        ASSERT(match_pos <= 1 << HEATSHRINK_ENCODER_WINDOW_BITS(hse) /* window_length */);
 
         return HSES_YIELD_TAG_BIT;
     }
