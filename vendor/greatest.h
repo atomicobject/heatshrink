@@ -69,7 +69,7 @@ GREATEST_MAIN_DEFS();
 
 /* Set up, run suite(s) of tests, report pass/fail/skip stats. */
 int run_tests(void) {
-    GREATEST_INIT();            /* init. greatest internals */
+    GREATEST_INIT();            /* initialize greatest internals */
     /* List of suites to run (if any). */
     RUN_SUITE(suite);
 
@@ -84,7 +84,7 @@ int run_tests(void) {
  * This replaces run_tests above, and adds command line option
  * handling and exiting with a pass/fail status. */
 int main(int argc, char **argv) {
-    GREATEST_MAIN_BEGIN();      /* init & parse command-line args */
+    GREATEST_MAIN_BEGIN();      /* initialize & parse command-line arguments */
     RUN_SUITE(suite);
     GREATEST_MAIN_END();        /* display results */
 }
@@ -251,7 +251,7 @@ typedef struct greatest_run_info {
     const char *fail_file;
     const char *msg;
 
-    /* current setup/teardown hooks and userdata */
+    /* current setup/teardown hooks and user data */
     greatest_setup_cb *setup;
     void *setup_udata;
     greatest_teardown_cb *teardown;
@@ -335,7 +335,7 @@ void greatest_set_test_suffix(const char *suffix);
 * Language Support *
 ********************/
 
-/* If __VA_ARGS__ (C99) is supported, allow parametric testing
+/* If __VA_ARGS__ (C99) are supported, allow parametric testing
 * without needing to manually manage the argument struct. */
 #if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 19901L) ||        \
     (defined(_MSC_VER) && _MSC_VER >= 1800)
@@ -458,7 +458,7 @@ typedef enum greatest_test_res {
         if (!(COND)) { GREATEST_FAILm(MSG); }                           \
     } while (0)
 
-/* Fail if a condition is not true, longjmping out of test. */
+/* Fail if a condition is not true, then longjmp out of test. */
 #define GREATEST_ASSERT_OR_LONGJMPm(MSG, COND)                          \
     do {                                                                \
         greatest_info.assertions++;                                     \
@@ -610,7 +610,7 @@ typedef enum greatest_test_res {
         return GREATEST_TEST_RES_SKIP;                                  \
     } while (0)
 
-/* Check the result of a subfunction using ASSERT, etc. */
+/* Check the result of a sub-function using ASSERT, etc. */
 #define GREATEST_CHECK_CALL(RES)                                        \
     do {                                                                \
         enum greatest_test_res greatest_RES = RES;                      \
