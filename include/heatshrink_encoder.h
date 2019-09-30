@@ -54,7 +54,7 @@ typedef struct {
     uint16_t match_scan_index;
     uint16_t match_length;
     uint16_t match_pos;
-    uint16_t outgoing_bits;     /* enqueued outgoing bits */
+    uint16_t outgoing_bits;     /* outgoing bits in queue */
     uint8_t outgoing_bits_count;
     uint8_t flags;
     uint8_t state;              /* current state machine node */
