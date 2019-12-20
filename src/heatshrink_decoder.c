@@ -70,6 +70,7 @@ heatshrink_decoder *heatshrink_decoder_alloc(uint16_t input_buffer_size,
 }
 
 void heatshrink_decoder_free(heatshrink_decoder *hsd) {
+    if (hsd == NULL) { return; }
     size_t buffers_sz = (1 << hsd->window_sz2) + hsd->input_buffer_size;
     size_t sz = sizeof(heatshrink_decoder) + buffers_sz;
     HEATSHRINK_FREE(hsd, sz);
