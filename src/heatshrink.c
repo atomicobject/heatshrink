@@ -5,7 +5,6 @@
 #include <assert.h>
 #include <string.h>
 #include <fcntl.h>
-#include <getopt.h>
 
 #include "heatshrink_encoder.h"
 #include "heatshrink_decoder.h"
@@ -20,6 +19,18 @@
 #else
 #define LOG(...) /* NO-OP */
 #endif
+
+/* If you're getting a build error because getopt.h or err.h are not
+ * available when compiling for an embedded platform, you're probably
+ * misundersting how this is supposed to be used.
+ *
+ * The encoder/decoder source files are for a library for embedded
+ * devices, but this file is for a command line program for a Unix-like
+ * environment, to work with data from embedded systems using the
+ * heatshrink library, experiment with how effectively different
+ * settings compress test data, etc. It is not supposed to be built for
+ * embedded devices, which are unlikely to have those headers. */
+#include <getopt.h>
 
 #if _WIN32
 #include <errno.h>

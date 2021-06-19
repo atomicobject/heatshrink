@@ -16,6 +16,9 @@ Fixed fallthrough in getopt 'h'.
 
 Added `CHANGELOG.md`.
 
+Added comment to help explain build error when attempting to build the
+command line interface for embedded systems without getopt.h/err.h.
+
 Use constant rather than bare int 4096 for buffer size.
 
 Fixed fallthrough compiler warning.
