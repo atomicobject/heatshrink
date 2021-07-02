@@ -1,6 +1,10 @@
 #ifndef HEATSHRINK_DECODER_H
 #define HEATSHRINK_DECODER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
+
 #include <stdint.h>
 #include <stddef.h>
 #include "heatshrink_common.h"
@@ -96,5 +100,9 @@ HSD_poll_res heatshrink_decoder_poll(heatshrink_decoder *hsd,
  * If the return value is HSDR_FINISH_MORE, there is still more output, so
  * call heatshrink_decoder_poll and repeat. */
 HSD_finish_res heatshrink_decoder_finish(heatshrink_decoder *hsd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
