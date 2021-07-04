@@ -24,7 +24,7 @@ Move repo into `include/`, `src/`, `test/`, and build in `build/`.
 
 Update theft tests to match interface changes in theft.
 
-greatest.h: Update vendored copy to 1.4.0.
+greatest.h: Update vendored copy to 1.5.0.
 
 Fix warnings with new version of greatest.
 
