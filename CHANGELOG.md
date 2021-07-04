@@ -19,6 +19,11 @@ Added `CHANGELOG.md`.
 Added comment to help explain build error when attempting to build the
 command line interface for embedded systems without getopt.h/err.h.
 
+Added `#ifndef`s around defaults for static configuration variables
+(`HEATSHRINK_STATIC_INPUT_BUFFER_SIZE`, `HEATSHRINK_STATIC_WINDOW_BITS`,
+`HEATSHRINK_STATIC_LOOKAHEAD_BITS`, `HEATSHRINK_DEBUGGING_LOGS`,
+`HEATSHRINK_USE_INDEX`). Thanks @ajaybhargav.
+
 Use constant rather than bare int 4096 for buffer size.
 
 Fixed fallthrough compiler warning.
