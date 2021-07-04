@@ -36,6 +36,8 @@ greatest.h: Update vendored copy to 1.5.0.
 
 Fix warnings with new version of greatest.
 
+Fixed warnings for unreachable code on ARMCC. (Thanks @sport-climber.)
+
 
 ## v0.4.1 - 2015-11-01
 
