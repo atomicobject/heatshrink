@@ -38,6 +38,8 @@ Fix warnings with new version of greatest.
 
 Fixed warnings for unreachable code on ARMCC. (Thanks @sport-climber.)
 
+Fixed various typos, reported by @UnePierre.
+
 
 ## v0.4.1 - 2015-11-01
 

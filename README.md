@@ -40,7 +40,7 @@ options.)
 
 2. Use `sink` to sink an input buffer into the state machine. The
 `input_size` pointer argument will be set to indicate how many bytes of
-the input buffer were actually consumed. (If 0 bytes were conusmed, the
+the input buffer were actually consumed. (If 0 bytes were consumed, the
 buffer is full.)
 
 3. Use `poll` to move output from the state machine into an output

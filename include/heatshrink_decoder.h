@@ -92,7 +92,7 @@ HSD_sink_res heatshrink_decoder_sink(heatshrink_decoder *hsd,
 HSD_poll_res heatshrink_decoder_poll(heatshrink_decoder *hsd,
     uint8_t *out_buf, size_t out_buf_size, size_t *output_size);
 
-/* Notify the dencoder that the input stream is finished.
+/* Notify the decoder that the input stream is finished.
  * If the return value is HSDR_FINISH_MORE, there is still more output, so
  * call heatshrink_decoder_poll and repeat. */
 HSD_finish_res heatshrink_decoder_finish(heatshrink_decoder *hsd);

@@ -917,7 +917,7 @@ TEST regression_backreference_counters_should_not_roll_over(void) {
 }
 
 TEST regression_index_fail(void) {
-    /* Failured when indexed, cause unknown.
+    /* Failure when indexed, cause unknown.
      *
      * This has something to do with bad data at the very last
      * byte being indexed, due to spillover. */
