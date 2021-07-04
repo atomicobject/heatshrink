@@ -31,7 +31,7 @@ probably want to statically allocate the encoder/decoder. Set
 `HEATSHRINK_DYNAMIC_ALLOC` to 0 in `heatshrink_config.h`.
 
 Note that the command line program defaults to compressing with default
-paramters when run without any arguments -- to see usage info, use:
+parameters when run without any arguments -- to see usage info, use:
 
     $ heatshrink -h
 
