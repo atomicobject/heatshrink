@@ -91,7 +91,6 @@ static void usage(void) {
         "\n"
         " If IN_FILE or OUT_FILE are unspecified, they will default to\n"
         " \"-\" for standard input and standard output, respectively.\n");
-    exit(1);
 }
 
 typedef enum { IO_READ, IO_WRITE, } IO_mode;
@@ -420,7 +419,8 @@ static void proc_args(config *cfg, int argc, char **argv) {
         switch (a) {
         case 'h':               /* help */
             usage();
-            /* FALLTHROUGH */
+            exit(EXIT_SUCCESS);
+            break;
         case 'e':               /* encode */
             cfg->cmd = OP_ENC; break;
         case 'd':               /* decode */
@@ -440,6 +440,8 @@ static void proc_args(config *cfg, int argc, char **argv) {
         case '?':               /* unknown argument */
         default:
             usage();
+            exit(EXIT_FAILURE);
+            break;
         }
     }
     argc -= optind;
@@ -483,5 +485,6 @@ int main(int argc, char **argv) {
         return decode(&cfg);
     } else {
         usage();
+        return EXIT_FAILURE;
     }
 }
