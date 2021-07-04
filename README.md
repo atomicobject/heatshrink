@@ -78,6 +78,13 @@ usage and how effectively it can compress data. These are set when
 dynamically allocating an encoder or decoder, or in `heatshrink_config.h`
 if they are statically allocated.
 
+Note that the configuration parameters are not explicitly represented in
+the compressed output -- in most use cases, either the configuration
+settings will remain constant and can be implicit, or there will be some
+kind of project-specific protocol envelope / header to contain that
+information.
+
+
 - `window_sz2`, `-w` in the CLI: Set the window size to 2^W bytes.
 
 The window size determines how far back in the input can be searched for
