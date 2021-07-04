@@ -10,6 +10,8 @@
 #error HEATSHRINK_DYNAMIC_ALLOC must be false for static allocation test suite.
 #endif
 
+#define LOG_TEST 0
+
 SUITE(integration);
 
 /* The majority of the tests are in test_heatshrink_dynamic, because that allows
@@ -18,9 +20,9 @@ SUITE(integration);
 static heatshrink_encoder hse;
 static heatshrink_decoder hsd;
 
-static void fill_with_pseudorandom_letters(uint8_t *buf, uint16_t size, uint32_t seed) {
+static void fill_with_pseudorandom_letters(uint8_t *buf, uint32_t size, uint32_t seed) {
     uint64_t rn = 9223372036854775783; /* prime under 2^64 */
-    for (int i=0; i<size; i++) {
+    for (uint32_t i = 0; i < size; i++) {
         rn = rn*seed + seed;
         buf[i] = (rn % 26) + 'a';
     }
@@ -49,7 +51,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
 
     if (log_lvl > 1) {
         printf("\n^^ COMPRESSING\n");
-        dump_buf("input", input, input_size);
+        dump_buf("input", input, (uint16_t)input_size);
     }
 
     uint32_t sunk = 0;
@@ -82,7 +84,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
     
     if (log_lvl > 1) {
         printf("\n^^ DECOMPRESSING\n");
-        dump_buf("comp", comp, compressed_size);
+        dump_buf("comp", comp, (uint16_t)compressed_size);
     }
     while (sunk < compressed_size) {
         ASSERT(heatshrink_decoder_sink(&hsd, &comp[sunk], compressed_size - sunk, &count) >= 0);
@@ -115,11 +117,11 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, in
         FAILm("Decompressed length does not match original input length");
     }
 
-    if (log_lvl > 1) dump_buf("decomp", decomp, polled);
-    for (size_t i=0; i<input_size; i++) {
+    if (log_lvl > 1) dump_buf("decomp", decomp, (uint16_t)polled);
+    for (size_t i = 0; i < input_size; i++) {
         if (input[i] != decomp[i]) {
             printf("*** mismatch at %zd\n", i);
-            if (0) {
+            if (LOG_TEST) {
                 for (size_t j=0; j<=/*i*/ input_size; j++) {
                     printf("in[%zd] == 0x%02x ('%c') => out[%zd] == 0x%02x ('%c')\n",
                         j, input[j], isprint(input[j]) ? input[j] : '.',

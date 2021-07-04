@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <string.h>
 #include <fcntl.h>
@@ -32,7 +33,7 @@
  * embedded devices, which are unlikely to have those headers. */
 #include <getopt.h>
 
-#if _WIN32
+#ifdef _WIN32
 #include <errno.h>
 #define HEATSHRINK_ERR(retval, ...) do { \
 fprintf(stderr, __VA_ARGS__); \
@@ -160,93 +161,113 @@ static io_handle *handle_open(char *fname, IO_mode m, size_t buf_sz) {
 }
 
 /* Read SIZE bytes from an IO handle and return a pointer to the content.
- * BUF contains at least size_t bytes. Returns 0 on EOF, -1 on error. */
-static ssize_t handle_read(io_handle *io, size_t size, uint8_t **buf) {
+ * BUF contains at least size_t bytes. Writes the number of bytes read
+ * into *read_length. Returns true on success, false on error. */
+static bool
+handle_read(io_handle *io, size_t size, uint8_t **buf, size_t *read_size) {
     LOG("@ read %zd\n", size);
-    if (buf == NULL) { return -1; }
+    if (buf == NULL || read_size == NULL) { return false; }
     if (size > io->size) {
         fprintf(stderr, "size %zd, io->size %zd\n", size, io->size);
-        return -1;
+        return false;
     }
-    if (io->mode != IO_READ) { return -1; }
+    if (io->mode != IO_READ) { return false; }
 
     size_t rem = io->fill - io->read;
     if (rem >= size) {
         *buf = &io->buf[io->read];
-        return size;
+        *read_size = size;
+        return true;
     } else {                    /* read and replenish */
         if (io->fd == -1) {     /* already closed, return what we've got */
             *buf = &io->buf[io->read];
-            return rem;
+            *read_size = rem;
+            return true;
         }
 
         memmove(io->buf, &io->buf[io->read], rem);
         io->fill -= io->read;
         io->read = 0;
         ssize_t read_sz = read(io->fd, &io->buf[io->fill], io->size - io->fill);
-        if (read_sz < 0) { HEATSHRINK_ERR(1, "read"); }
-        io->total += read_sz;
+        if (read_sz < 0) {
+            HEATSHRINK_ERR(1, "read");
+            return false;
+        }
+        io->total += (size_t)read_sz;
         if (read_sz == 0) {     /* EOF */
-            if (close(io->fd) < 0) { HEATSHRINK_ERR(1, "close"); }
+            if (close(io->fd) < 0) {
+                HEATSHRINK_ERR(1, "close");
+                return false;
+            }
             io->fd = -1;
         }
-        io->fill += read_sz;
+        io->fill += (size_t)read_sz;
         *buf = io->buf;
-        return io->fill > size ? size : io->fill;
+        *read_size = (io->fill > size ? size : io->fill);
+        return true;
     }
 }
 
-/* Drop the oldest SIZE bytes from the buffer. Returns <0 on error. */
-static int handle_drop(io_handle *io, size_t size) {
+/* Drop the oldest SIZE bytes from the buffer. Returns false on error. */
+static bool
+handle_drop(io_handle *io, size_t size) {
     LOG("@ drop %zd\n", size);
     if (io->read + size <= io->fill) {
         io->read += size;
     } else {
-        return -1;
+        return false;
     }
     if (io->read == io->fill) {
         io->read = 0;
         io->fill = 0;
     }
-    return 0;
+    return true;
 }
 
 /* Sink SIZE bytes from INPUT into the io handle. Returns the number of
  * bytes written, or -1 on error. */
-static ssize_t handle_sink(io_handle *io, size_t size, uint8_t *input) {
+static bool
+handle_sink(io_handle *io, size_t size, uint8_t *input, size_t *sink_size) {
     LOG("@ sink %zd\n", size);
-    if (size > io->size) { return -1; }
-    if (io->mode != IO_WRITE) { return -1; }
+    if (size > io->size) { return false; }
+    if (io->mode != IO_WRITE) { return false; }
+    if (sink_size == NULL) { return false; }
 
     if (io->fill + size > io->size) {
         ssize_t written = write(io->fd, io->buf, io->fill);
         LOG("@ flushing %zd, wrote %zd\n", io->fill, written);
-        io->total += written;
-        if (written == -1) { HEATSHRINK_ERR(1, "write"); }
-        memmove(io->buf, &io->buf[written], io->fill - written);
-        io->fill -= written;
+        if (written < 0) { HEATSHRINK_ERR(1, "write"); }
+        io->total += (size_t)written;
+        memmove(io->buf, &io->buf[written], io->fill - (size_t)written);
+        io->fill -= (size_t)written;
     }
     memcpy(&io->buf[io->fill], input, size);
     io->fill += size;
-    return size;
+    *sink_size = size;
+    return true;
 }
 
-static void handle_close(io_handle *io) {
+static bool
+handle_close(io_handle *io) {
     if (io->fd != -1) {
         if (io->mode == IO_WRITE) {
             ssize_t written = write(io->fd, io->buf, io->fill);
-            io->total += written;
+            if (written < 0) {
+                HEATSHRINK_ERR(1, "write");
+                return false;
+            }
+            io->total += (size_t)written;
             LOG("@ close: flushing %zd, wrote %zd\n", io->fill, written);
-            if (written == -1) { HEATSHRINK_ERR(1, "write"); }
         }
         close(io->fd);
         io->fd = -1;
     }
+    return true;
 }
 
 static void close_and_report(config *cfg) {
-    handle_close(cfg->in);
-    handle_close(cfg->out);
+    (void)handle_close(cfg->in);
+    (void)handle_close(cfg->out);
     if (cfg->verbose) { report(cfg); }
     free(cfg->in);
     free(cfg->out);
@@ -275,7 +296,10 @@ static int encoder_sink_read(config *cfg, heatshrink_encoder *hse,
         do {
             pres = heatshrink_encoder_poll(hse, out_buf, out_sz, &poll_sz);
             if (pres < 0) { die("poll"); }
-            if (handle_sink(out, poll_sz, out_buf) < 0) die("handle_sink");
+            size_t sunk_bytes;
+            if (!handle_sink(out, poll_sz, out_buf, &sunk_bytes)) {
+                die("handle_sink");
+            }
         } while (pres == HSER_POLL_MORE);
         
         if (poll_sz == 0 && data_sz == 0) {
@@ -292,26 +316,22 @@ static int encode(config *cfg) {
     size_t window_sz = 1 << window_sz2; 
     heatshrink_encoder *hse = heatshrink_encoder_alloc(window_sz2, cfg->lookahead_sz2);
     if (hse == NULL) { die("failed to init encoder: bad settings"); }
-    ssize_t read_sz = 0;
+    size_t read_sz = 0;
     io_handle *in = cfg->in;
 
     /* Process input until end of stream */
     while (1) {
         uint8_t *input = NULL;
-        read_sz = handle_read(in, window_sz, &input);
-        if (input == NULL) {
+        if (!handle_read(in, window_sz, &input, &read_sz) || input == NULL) {
             fprintf(stderr, "handle read failure\n");
             die("read");
         }
-        if (read_sz < 0) { die("read"); }
 
         /* Pass read to encoder and check if input is fully processed. */
         if (encoder_sink_read(cfg, hse, input, read_sz)) break;
 
-        if (handle_drop(in, read_sz) < 0) { die("drop"); }
-    };
-
-    if (read_sz == -1) { HEATSHRINK_ERR(1, "read"); }
+        if (!handle_drop(in, read_sz)) { die("drop"); }
+    }
 
     heatshrink_encoder_free(hse);
     close_and_report(cfg);
@@ -342,7 +362,10 @@ static int decoder_sink_read(config *cfg, heatshrink_decoder *hsd,
         do {
             pres = heatshrink_decoder_poll(hsd, out_buf, out_sz, &poll_sz);
             if (pres < 0) { die("poll"); }
-            if (handle_sink(out, poll_sz, out_buf) < 0) die("handle_sink");
+            size_t sink_bytes;
+            if (!handle_sink(out, poll_sz, out_buf, &sink_bytes)) {
+                die("handle_sink");
+            }
         } while (pres == HSDR_POLL_MORE);
         
         if (data_sz == 0 && poll_sz == 0) {
@@ -359,11 +382,9 @@ static int decode(config *cfg) {
     uint8_t window_sz2 = cfg->window_sz2;
     size_t window_sz = 1 << window_sz2;
     size_t ibs = cfg->decoder_input_buffer_size;
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(ibs,
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc((uint16_t)ibs,
         window_sz2, cfg->lookahead_sz2);
     if (hsd == NULL) { die("failed to init decoder"); }
-
-    ssize_t read_sz = 0;
 
     io_handle *in = cfg->in;
 
@@ -372,8 +393,8 @@ static int decode(config *cfg) {
     /* Process input until end of stream */
     while (1) {
         uint8_t *input = NULL;
-        read_sz = handle_read(in, window_sz, &input);
-        if (input == NULL) {
+        size_t read_sz = 0;
+        if (!handle_read(in, window_sz, &input, &read_sz) || input == NULL) {
             fprintf(stderr, "handle read failure\n");
             die("read");
         }
@@ -381,14 +402,11 @@ static int decode(config *cfg) {
             fres = heatshrink_decoder_finish(hsd);
             if (fres < 0) { die("finish"); }
             if (fres == HSDR_FINISH_DONE) break;
-        } else if (read_sz < 0) {
-            die("read");
         } else {
             if (decoder_sink_read(cfg, hsd, input, read_sz)) { break; }
-            if (handle_drop(in, read_sz) < 0) { die("drop"); }
+            if (!handle_drop(in, read_sz)) { die("drop"); }
         }
     }
-    if (read_sz == -1) { HEATSHRINK_ERR(1, "read"); }
         
     heatshrink_decoder_free(hsd);
     close_and_report(cfg);
@@ -400,7 +418,7 @@ static void report(config *cfg) {
     size_t outb = cfg->out->total;
     fprintf(cfg->out->fd == STDOUT_FILENO ? stderr : stdout,
         "%s %0.2f %%\t %zd -> %zd (-w %u -l %u)\n",
-        cfg->in_fname, 100.0 - (100.0 * outb) / inb, inb, outb,
+        cfg->in_fname, 100.0 - (100.0 * (double)outb) / (double)inb, inb, outb,
         cfg->window_sz2, cfg->lookahead_sz2);
 }
 
@@ -420,19 +438,23 @@ static void proc_args(config *cfg, int argc, char **argv) {
         case 'h':               /* help */
             usage();
             exit(EXIT_SUCCESS);
-            break;
         case 'e':               /* encode */
             cfg->cmd = OP_ENC; break;
         case 'd':               /* decode */
             cfg->cmd = OP_DEC; break;
         case 'i':               /* input buffer size */
-            cfg->decoder_input_buffer_size = atoi(optarg);
+            cfg->decoder_input_buffer_size = (size_t)atoi(optarg);
             break;
         case 'w':               /* window bits */
-            cfg->window_sz2 = atoi(optarg);
+            cfg->window_sz2 = (uint8_t)atoi(optarg);
+            if (cfg->window_sz2 < HEATSHRINK_MIN_WINDOW_BITS
+                || cfg->window_sz2 > HEATSHRINK_MAX_WINDOW_BITS) {
+                fprintf(stderr, "Invalid window bits: %u\n", cfg->window_sz2);
+                exit(EXIT_FAILURE);
+            }
             break;
         case 'l':               /* lookahead bits */
-            cfg->lookahead_sz2 = atoi(optarg);
+            cfg->lookahead_sz2 = (uint8_t)atoi(optarg);
             break;
         case 'v':               /* verbosity++ */
             cfg->verbose++;
@@ -441,7 +463,6 @@ static void proc_args(config *cfg, int argc, char **argv) {
         default:
             usage();
             exit(EXIT_FAILURE);
-            break;
         }
     }
     argc -= optind;
@@ -452,6 +473,12 @@ static void proc_args(config *cfg, int argc, char **argv) {
         argv++;
     }
     if (argc > 0) { cfg->out_fname = argv[0]; }
+
+    if (cfg->lookahead_sz2 < HEATSHRINK_MIN_LOOKAHEAD_BITS
+        || cfg->lookahead_sz2 >= cfg->window_sz2) {
+        fprintf(stderr, "Invalid lookahead bits: %u\n", cfg->lookahead_sz2);
+        exit(EXIT_FAILURE);
+    }
 }
 
 int main(int argc, char **argv) {
@@ -470,7 +497,7 @@ int main(int argc, char **argv) {
     cfg.out = handle_open(cfg.out_fname, IO_WRITE, cfg.buffer_size);
     if (cfg.out == NULL) { die("Failed to open output file for write"); }
 
-#if _WIN32
+#ifdef _WIN32
     /*
      * On Windows, stdin and stdout default to text mode. Switch them to
      * binary mode before sending data through them.

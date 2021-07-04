@@ -40,6 +40,12 @@ Fixed warnings for unreachable code on ARMCC. (Thanks @sport-climber.)
 
 Fixed various typos, reported by @UnePierre.
 
+Added checks and error messages when the CLI is given invalid
+parameters for the window or lookahead bits.
+
+Addressed a bunch of warnings from clang's `-Weverything`, which
+mostly had to do with mixing up numeric types.
+
 
 ## v0.4.1 - 2015-11-01
 

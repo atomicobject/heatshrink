@@ -10,6 +10,8 @@
 #error Must set HEATSHRINK_DYNAMIC_ALLOC to 1 for dynamic allocation test suite.
 #endif
 
+#define LOG_TEST 0
+
 SUITE(encoding);
 SUITE(decoding);
 SUITE(regression);
@@ -19,10 +21,10 @@ SUITE(integration);
 SUITE(properties);
 #endif
 
-static void dump_buf(char *name, uint8_t *buf, uint16_t count) {
-    for (int i=0; i<count; i++) {
+static void dump_buf(char *name, uint8_t *buf, size_t count) {
+    for (size_t i = 0; i < count; i++) {
         uint8_t c = (uint8_t)buf[i];
-        printf("%s %d: 0x%02x ('%c')\n", name, i, c, isprint(c) ? c : '.');
+        printf("%s %zu: 0x%02x ('%c')\n", name, i, c, isprint(c) ? c : '.');
     }
 }
 
@@ -116,7 +118,7 @@ TEST encoder_should_emit_data_without_repetitions_as_literal_sequence(void) {
     size_t copied = 0;
     uint8_t expected[] = { 0x80, 0x40, 0x60, 0x50, 0x38, 0x20 };
 
-    for (int i=0; i<5; i++) { input[i] = i; }
+    for (uint8_t i=0; i<5; i++) { input[i] = i; }
     memset(output, 0, 1024);
     ASSERT_EQ(HSER_SINK_OK, heatshrink_encoder_sink(hse, input, 5, &copied));
     ASSERT_EQ(5, copied);
@@ -170,7 +172,7 @@ TEST encoder_should_emit_series_of_same_byte_as_literal_then_backref(void) {
     pres = heatshrink_encoder_poll(hse, output, 1024, &copied);
     ASSERT_EQ(HSER_POLL_EMPTY, pres);
     ASSERT_EQ(4, copied);
-    if (0) dump_buf("output", output, copied);
+    if (LOG_TEST) dump_buf("output", output, copied);
     for (size_t i=0; i<copied; i++) ASSERT_EQ(expected[i], output[i]);
 
     ASSERT_EQ(HSER_FINISH_DONE, heatshrink_encoder_finish(hse));
@@ -199,7 +201,7 @@ TEST encoder_poll_should_detect_repeated_substring(void) {
     fres = heatshrink_encoder_finish(hse);
     ASSERT_EQ(HSER_FINISH_DONE, fres);
 
-    if (0) dump_buf("output", output, copied);
+    if (LOG_TEST) dump_buf("output", output, copied);
     ASSERT_EQ(sizeof(expected), copied);
     for (size_t i=0; i<sizeof(expected); i++) ASSERT_EQ(expected[i], output[i]);
     heatshrink_encoder_free(hse);
@@ -225,7 +227,7 @@ TEST encoder_poll_should_detect_repeated_substring_and_preserve_trailing_literal
     fres = heatshrink_encoder_finish(hse);
     ASSERT_EQ(HSER_FINISH_DONE, fres);
 
-    if (0) dump_buf("output", output, copied);
+    if (LOG_TEST) dump_buf("output", output, copied);
     ASSERT_EQ(sizeof(expected), copied);
     for (size_t i=0; i<sizeof(expected); i++) ASSERT_EQ(expected[i], output[i]);
     heatshrink_encoder_free(hse);
@@ -403,7 +405,7 @@ TEST decoder_poll_should_expand_short_literal_and_backref(void) {
     size_t out_sz = 0;
     (void)heatshrink_decoder_poll(hsd, output, 6, &out_sz);
 
-    if (0) dump_buf("output", output, out_sz);
+    if (LOG_TEST) dump_buf("output", output, out_sz);
     ASSERT_EQ_FMT(6, (int)out_sz, "%d");
     ASSERT_EQ('f', output[0]);
     ASSERT_EQ('o', output[1]);
@@ -430,7 +432,7 @@ TEST decoder_poll_should_expand_short_self_overlapping_backref(void) {
     size_t out_sz = 0;
     (void)heatshrink_decoder_poll(hsd, output, sizeof(output), &out_sz);
 
-    if (0) dump_buf("output", output, out_sz);
+    if (LOG_TEST) dump_buf("output", output, out_sz);
     ASSERT_EQ(sizeof(expected), out_sz);
     for (size_t i=0; i<sizeof(expected); i++) ASSERT_EQ(expected[i], output[i]);
 
@@ -565,7 +567,7 @@ TEST gen(void) {
     ASSERT_EQ(HSER_POLL_EMPTY, heatshrink_encoder_poll(hse, output, 1024, &copied));
     fres = heatshrink_encoder_finish(hse);
     ASSERT_EQ(HSER_FINISH_DONE, fres);
-    if (0) {
+    if (LOG_TEST) {
         printf("{");
         for (size_t i=0; i<copied; i++) printf("0x%02x, ", output[i]);
         printf("}\n");
@@ -590,12 +592,12 @@ TEST decoder_should_not_get_stuck_with_finish_yielding_MORE_but_0_bytes_output_f
      * this to happen, if at exactly the byte boundary. */
     for (uint16_t byte = 0; byte < 256; byte++) {
         for (int i = 1; i < 512; i++) {
-            input[i] = byte;
+            input[i] = (uint8_t)byte;
             heatshrink_decoder_reset(hsd);
             memset(output, 0, sizeof(*output));
             size_t count = 0;
             
-            HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, i, &count);
+            HSD_sink_res sres = heatshrink_decoder_sink(hsd, input, (size_t)i, &count);
             ASSERT_EQ(HSDR_SINK_OK, sres);
             
             size_t out_sz = 0;
@@ -655,7 +657,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cf
     heatshrink_encoder *hse = heatshrink_encoder_alloc(cfg->window_sz2,
         cfg->lookahead_sz2);
     ASSERT(hse);
-    heatshrink_decoder *hsd = heatshrink_decoder_alloc(cfg->decoder_input_buffer_size,
+    heatshrink_decoder *hsd = heatshrink_decoder_alloc((uint16_t)cfg->decoder_input_buffer_size,
         cfg->window_sz2, cfg->lookahead_sz2);
     ASSERT(hsd);
     size_t comp_sz = input_size + (input_size/2) + 4;
@@ -744,7 +746,7 @@ static int compress_and_expand_and_check(uint8_t *input, uint32_t input_size, cf
     for (uint32_t i=0; i<input_size; i++) {
         if (input[i] != decomp[i]) {
             printf("*** mismatch at %d\n", i);
-            if (0) {
+            if (LOG_TEST) {
                 for (uint32_t j=0; j<=/*i*/ input_size; j++) {
                     printf("in[%d] == 0x%02x ('%c') => out[%d] == 0x%02x ('%c')  %c\n",
                         j, input[j], isprint(input[j]) ? input[j] : '.',
@@ -897,7 +899,7 @@ TEST small_input_buffer_should_not_impact_decoder_correctness(void) {
     cfg.lookahead_sz2 = 3;
     cfg.decoder_input_buffer_size = 5;
     for (uint16_t i=0; i<size; i++) input[i] = 'a' + (i % 26);
-    if (compress_and_expand_and_check(input, size, &cfg) != 0) return -1;
+    if (compress_and_expand_and_check(input, (uint32_t)size, &cfg) != 0) return -1;
     PASS();
 }
 
