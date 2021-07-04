@@ -38,8 +38,10 @@ clean:
 	rm -rf ${BENCHMARK_OUT}
 	rm -f TAGS
 
-TAGS:
-	etags *.[ch]
+tags: ${BUILD}/TAGS
+
+${BUILD}/TAGS: | ${BUILD}
+	etags -o $@ src/*.[ch] include/*.[ch]
 
 diagrams: ${BUILD}/dec_sm.png ${BUILD}/enc_sm.png
 
