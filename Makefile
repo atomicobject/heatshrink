@@ -51,7 +51,7 @@ ${BUILD}/%.png: ${SRC}/%.dot
 
 # Benchmarking
 CORPUS_ARCHIVE=	cantrbry.tar.gz
-CORPUS_URL=	http://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
+CORPUS_URL=	https://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
 BENCHMARK_OUT=	${BUILD}/benchmark_out
 
 ## Uncomment one of these.

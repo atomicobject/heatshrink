@@ -68,8 +68,8 @@ compression, with a few important implementation details:
 
 3. In general, implementation trade-offs have favored low memory usage.
 
-[index]: http://spin.atomicobject.com/2014/01/13/lightweight-indexing-for-embedded-systems/
-[LZSS]: http://en.wikipedia.org/wiki/Lempel-Ziv-Storer-Szymanski
+[index]: https://spin.atomicobject.com/2014/01/13/lightweight-indexing-for-embedded-systems/
+[LZSS]: https://en.wikipedia.org/wiki/Lempel-Ziv-Storer-Szymanski
 
 
 ## Testing

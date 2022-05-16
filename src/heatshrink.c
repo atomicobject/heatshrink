@@ -23,7 +23,7 @@
 
 /* If you're getting a build error because getopt.h or err.h are not
  * available when compiling for an embedded platform, you're probably
- * misundersting how this is supposed to be used.
+ * misunderstanding how this is supposed to be used.
  *
  * The encoder/decoder source files are for a library for embedded
  * devices, but this file is for a command line program for a Unix-like

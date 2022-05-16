@@ -6,7 +6,7 @@ HS=../heatshrink
 cd ${BENCHMARK_OUT}
 
 # Files in the Canterbury Corpus
-# http://corpus.canterbury.ac.nz/resources/cantrbry.tar.gz
+# https://corpus.canterbury.ac.nz/resources/cantrbry.tar.gz
 FILES='alice29.txt
 asyoulik.txt
 cp.html
