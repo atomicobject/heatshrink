@@ -140,9 +140,9 @@ For more information, see the [blog post] for an overview, and the
 `heatshrink_encoder.h` / `heatshrink_decoder.h` header files for API
 documentation.
 
-[blog post]: http://spin.atomicobject.com/2013/03/14/heatshrink-embedded-data-compression/
-[index]: http://spin.atomicobject.com/2014/01/13/lightweight-indexing-for-embedded-systems/
-[LZSS]: http://en.wikipedia.org/wiki/Lempel-Ziv-Storer-Szymanski
+[blog post]: https://spin.atomicobject.com/2013/03/14/heatshrink-embedded-data-compression/
+[index]: https://spin.atomicobject.com/2014/01/13/lightweight-indexing-for-embedded-systems/
+[LZSS]: https://en.wikipedia.org/wiki/Lempel-Ziv-Storer-Szymanski
 
 
 ## Build Status
