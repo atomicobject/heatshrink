@@ -47,7 +47,7 @@ static const int version_patch = HEATSHRINK_VERSION_PATCH;
 static const char author[] = HEATSHRINK_AUTHOR;
 static const char url[] = HEATSHRINK_URL;
 
-static void usage(void) {
+static void __attribute__((__noreturn__)) usage(void) {
     fprintf(stderr, "heatshrink version %u.%u.%u by %s\n",
         version_major, version_minor, version_patch, author);
     fprintf(stderr, "Home page: %s\n\n", url);
