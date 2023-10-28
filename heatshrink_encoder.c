@@ -552,21 +552,16 @@ static void push_bits(heatshrink_encoder *hse, uint8_t count, uint8_t bits,
     ASSERT(count <= 8);
     LOG("++ push_bits: %d bits, input of 0x%02x\n", count, bits);
 
-    /* If adding a whole byte and at the start of a new output byte,
-     * just push it through whole and skip the bit IO loop. */
-    if (count == 8 && hse->bit_index == 8) {
-        oi->buf[(*oi->output_size)++] = bits;
+    if (count >= hse->bit_index) {
+        uint8_t shift = count - hse->bit_index;
+        uint8_t tmp_byte = hse->current_byte | (bits >> shift);
+        oi->buf[(*oi->output_size)++] = tmp_byte;
+        shift = 8 - shift;
+        hse->bit_index = shift;
+        hse->current_byte = bits << shift;
     } else {
-        if (count >= hse->bit_index) {
-            uint8_t shift = count - hse->bit_index;
-            uint8_t tmp_byte = hse->current_byte | (bits >> shift);
-            oi->buf[(*oi->output_size)++] = tmp_byte;
-            hse->bit_index = 8 - shift;
-            hse->current_byte = bits << hse->bit_index;
-        } else {
-            hse->bit_index -= count;
-            hse->current_byte |=  bits << hse->bit_index;
-        }
+        hse->bit_index -= count;
+        hse->current_byte |=  bits << hse->bit_index;
     }
 }
 
