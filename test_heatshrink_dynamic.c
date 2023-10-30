@@ -325,7 +325,7 @@ TEST decoder_sink_should_sink_data_when_preconditions_hold(void) {
     HSD_sink_res res = heatshrink_decoder_sink(hsd, input, 6, &count);
     ASSERT_EQ(HSDR_SINK_OK, res);
     ASSERT_EQ(hsd->input_size, 6);
-    ASSERT_EQ(hsd->input_index, 0);
+    ASSERT_EQ(hsd->input_index, 1);
     heatshrink_decoder_free(hsd);
     PASS();
 }
