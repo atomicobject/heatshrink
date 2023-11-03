@@ -55,8 +55,8 @@ CORPUS_URL=	https://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
 BENCHMARK_OUT=	${BUILD}/benchmark_out
 
 ## Uncomment one of these.
-DL=	curl -o ${BUILD}/${CORPUS_ARCHIVE}
-#DL=	wget -O ${BUILD}/${CORPUS_ARCHIVE}
+DL=	curl -o
+#DL=	wget -O
 
 bench: ${BUILD}/heatshrink corpus
 	mkdir -p ${BENCHMARK_OUT}
@@ -66,7 +66,7 @@ bench: ${BUILD}/heatshrink corpus
 corpus: ${BUILD}/${CORPUS_ARCHIVE}
 
 ${BUILD}/${CORPUS_ARCHIVE}:
-	${DL} ${CORPUS_URL}
+	${DL} $@ ${CORPUS_URL}
 
 # Installation
 PREFIX ?=	/usr/local
