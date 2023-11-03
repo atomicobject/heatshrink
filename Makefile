@@ -42,12 +42,12 @@ enc_sm.png: enc_sm.dot
 
 # Benchmarking
 CORPUS_ARCHIVE=	cantrbry.tar.gz
-CORPUS_URL=	http://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
+CORPUS_URL=	https://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
 BENCHMARK_OUT=	benchmark_out
 
 ## Uncomment one of these.
-DL=	curl -o ${CORPUS_ARCHIVE}
-#DL=	wget -O ${CORPUS_ARCHIVE}
+DL=	curl -o
+#DL=	wget -O
 
 bench: heatshrink corpus
 	mkdir -p ${BENCHMARK_OUT}
@@ -57,7 +57,7 @@ bench: heatshrink corpus
 corpus: ${CORPUS_ARCHIVE}
 
 ${CORPUS_ARCHIVE}:
-	${DL} ${CORPUS_URL}
+	${DL} $@ ${CORPUS_URL}
 
 # Installation
 PREFIX ?=	/usr/local
