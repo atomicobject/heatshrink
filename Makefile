@@ -48,7 +48,6 @@ diagrams: ${BUILD}/dec_sm.png ${BUILD}/enc_sm.png
 ${BUILD}/%.png: ${SRC}/%.dot
 	dot -o $@ -Tpng $<
 
-
 # Benchmarking
 CORPUS_ARCHIVE=	cantrbry.tar.gz
 CORPUS_URL=	https://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
