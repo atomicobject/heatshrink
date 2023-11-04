@@ -25,8 +25,9 @@ test: test_runners
 ci: test
 
 clean:
-	rm -f heatshrink test_heatshrink_{dynamic,static} \
-		*.o *.os *.od *.core *.a {dec,enc}_sm.png TAGS
+	rm -f heatshrink test_heatshrink_dynamic \
+		test_heatshrink_static dec_sm.png enc_sm.png \
+		*.o *.os *.od *.core *.a TAGS
 	rm -rf ${BENCHMARK_OUT}
 
 TAGS:
@@ -34,10 +35,7 @@ TAGS:
 
 diagrams: dec_sm.png enc_sm.png
 
-dec_sm.png: dec_sm.dot
-	dot -o $@ -Tpng $<
-
-enc_sm.png: enc_sm.dot
+%.png: %.dot
 	dot -o $@ -Tpng $<
 
 # Benchmarking
