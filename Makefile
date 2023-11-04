@@ -34,20 +34,18 @@ test: test_runners
 ci: test
 
 clean:
-	rm -rf ${BUILD}
 	rm -rf ${BENCHMARK_OUT}
-	rm -f TAGS
+	rm -rf ${BUILD}
 
 tags: ${BUILD}/TAGS
 
 ${BUILD}/TAGS: | ${BUILD}
-	etags -o $@ src/*.[ch] include/*.[ch]
+	etags -o $@ ${SRC}/*.[ch] ${INCLUDE}/*.[ch]
 
 diagrams: ${BUILD}/dec_sm.png ${BUILD}/enc_sm.png
 
 ${BUILD}/%.png: ${SRC}/%.dot
 	dot -o $@ -Tpng $<
-
 
 # Benchmarking
 CORPUS_ARCHIVE=	cantrbry.tar.gz
@@ -58,12 +56,10 @@ BENCHMARK_OUT=	${BUILD}/benchmark_out
 DL=	curl -o
 #DL=	wget -O
 
-bench: ${BUILD}/heatshrink corpus
+bench: ${BUILD}/heatshrink ${BUILD}/${CORPUS_ARCHIVE}
 	mkdir -p ${BENCHMARK_OUT}
 	cd ${BENCHMARK_OUT} && tar vzxf ../${CORPUS_ARCHIVE}
 	time test/benchmark
-
-corpus: ${BUILD}/${CORPUS_ARCHIVE}
 
 ${BUILD}/${CORPUS_ARCHIVE}:
 	${DL} $@ ${CORPUS_URL}
@@ -83,6 +79,7 @@ install: libraries heatshrink
 	${INSTALL} -c heatshrink_decoder.h ${PREFIX}/include/
 
 uninstall:
+	${RM} -f ${PREFIX}/bin/heatshrink
 	${RM} -f ${PREFIX}/lib/libheatshrink_static.a
 	${RM} -f ${PREFIX}/lib/libheatshrink_dynamic.a
 	${RM} -f ${PREFIX}/include/heatshrink_common.h
@@ -157,5 +154,3 @@ ${BUILD}/dynamic/: | ${BUILD}
 	mkdir ${BUILD}/dynamic
 
 ${BUILD}/*.o: Makefile ${INCLUDE}/*.h ${SRC}/*.h
-
-
