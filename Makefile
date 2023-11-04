@@ -34,39 +34,35 @@ test: test_runners
 ci: test
 
 clean:
-	rm -rf ${BUILD}
 	rm -rf ${BENCHMARK_OUT}
-	rm -f TAGS
+	rm -rf ${BUILD}
 
 tags: ${BUILD}/TAGS
 
 ${BUILD}/TAGS: | ${BUILD}
-	etags -o $@ src/*.[ch] include/*.[ch]
+	etags -o $@ ${SRC}/*.[ch] ${INCLUDE}/*.[ch]
 
 diagrams: ${BUILD}/dec_sm.png ${BUILD}/enc_sm.png
 
 ${BUILD}/%.png: ${SRC}/%.dot
 	dot -o $@ -Tpng $<
 
-
 # Benchmarking
 CORPUS_ARCHIVE=	cantrbry.tar.gz
-CORPUS_URL=	http://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
+CORPUS_URL=	https://corpus.canterbury.ac.nz/resources/${CORPUS_ARCHIVE}
 BENCHMARK_OUT=	${BUILD}/benchmark_out
 
 ## Uncomment one of these.
-DL=	curl -o ${BUILD}/${CORPUS_ARCHIVE}
-#DL=	wget -O ${BUILD}/${CORPUS_ARCHIVE}
+DL=	curl -o
+#DL=	wget -O
 
-bench: ${BUILD}/heatshrink corpus
+bench: ${BUILD}/heatshrink ${BUILD}/${CORPUS_ARCHIVE}
 	mkdir -p ${BENCHMARK_OUT}
-	cd ${BENCHMARK_OUT} && tar vzxf ../${CORPUS_ARCHIVE}
+	tar xvfz ${BUILD}/${CORPUS_ARCHIVE} --directory=${BENCHMARK_OUT}
 	time test/benchmark
 
-corpus: ${BUILD}/${CORPUS_ARCHIVE}
-
-${CORPUS_ARCHIVE}:
-	${DL} ${CORPUS_URL}
+${BUILD}/${CORPUS_ARCHIVE}:
+	${DL} $@ ${CORPUS_URL}
 
 # Installation
 PREFIX ?=	/usr/local
@@ -83,6 +79,7 @@ install: libraries heatshrink
 	${INSTALL} -c heatshrink_decoder.h ${PREFIX}/include/
 
 uninstall:
+	${RM} -f ${PREFIX}/bin/heatshrink
 	${RM} -f ${PREFIX}/lib/libheatshrink_static.a
 	${RM} -f ${PREFIX}/lib/libheatshrink_dynamic.a
 	${RM} -f ${PREFIX}/include/heatshrink_common.h
