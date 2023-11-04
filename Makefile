@@ -36,7 +36,6 @@ ci: test
 clean:
 	rm -rf ${BUILD}
 	rm -rf ${BENCHMARK_OUT}
-	rm -f TAGS
 
 tags: ${BUILD}/TAGS
 
@@ -57,12 +56,10 @@ BENCHMARK_OUT=	${BUILD}/benchmark_out
 DL=	curl -o
 #DL=	wget -O
 
-bench: ${BUILD}/heatshrink corpus
+bench: ${BUILD}/heatshrink ${BUILD}/${CORPUS_ARCHIVE}
 	mkdir -p ${BENCHMARK_OUT}
-	cd ${BENCHMARK_OUT} && tar vzxf ../${CORPUS_ARCHIVE}
+	tar xvfz ${BUILD}/${CORPUS_ARCHIVE} --directory=${BENCHMARK_OUT}
 	time test/benchmark
-
-corpus: ${BUILD}/${CORPUS_ARCHIVE}
 
 ${BUILD}/${CORPUS_ARCHIVE}:
 	${DL} $@ ${CORPUS_URL}

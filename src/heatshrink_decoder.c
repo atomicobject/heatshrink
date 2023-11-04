@@ -300,7 +300,7 @@ static HSD_state st_yield_backref(heatshrink_decoder *hsd,
 static uint16_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
     uint16_t accumulator = 0;
     // Note: So far, the max value for count seems to be 8.
-    ASSERT(count < 16);
+    ASSERT(count <= 8);
     LOG("-- popping %u bit(s)\n", count);
 
     /* If we aren't able to get COUNT bits, suspend immediately, because we
@@ -331,7 +331,7 @@ static uint16_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
             // reset the bit index
             hsd->bit_index = 8;
         }
-    } else if (count <= (hsd->bit_index + 8)) {
+    } else {
         // we need to take some bits from next byte
         // shift accumulator (8 bits) left
         accumulator <<= 8;
@@ -343,23 +343,6 @@ static uint16_t get_bits(heatshrink_decoder *hsd, uint8_t count) {
         hsd->bit_index += 8 - count;
         // shift accumulator right
         accumulator >>= hsd->bit_index;
-    } else {
-        // Note: For now this part of code is never trigered on decode.
-        // we need to take bits from the next 2 bytes
-        // shift accumulator (8 bits) left
-        accumulator <<= 8;
-        // consume next byte from the input buffer
-        hsd->current_byte = hsd->buffers[hsd->input_index++];
-        // add it to the accumulator
-        accumulator += hsd->current_byte;
-        // Consume one more byte
-        hsd->current_byte = hsd->buffers[hsd->input_index++];
-        // update bit_index
-        hsd->bit_index += 16 - count;
-        // shift accumulator left to be able to add bits
-        accumulator <<= 8 - hsd->bit_index;
-        // Add the missing (shifted) bits
-        accumulator += hsd->current_byte >> hsd->bit_index;
     }
 
     // if we reach the end of buffer, reset input_index and input_size
